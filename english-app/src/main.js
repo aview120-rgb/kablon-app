@@ -4,7 +4,7 @@ import * as store from './store.js';
 import { isDone, isUnlocked, nextLesson, completeLesson } from './progress.js';
 import { buildLesson, buildReview, check, shuffle } from './lesson-engine.js';
 import { seeWord, due } from './srs.js';
-import { speak, ttsAvailable } from './tts.js';
+import { speak, ttsAvailable, warmUp, openVoiceInstall } from './tts.js';
 import * as ads from './ads.js';
 import { APP } from './config.js';
 
@@ -36,7 +36,33 @@ function toast(msg) {
   document.body.append(t); setTimeout(() => t.remove(), 2800);
 }
 function persist() { store.save(); }
-function say(text) { if (state.settings.sound) speak(text, state.settings.ttsRate); }
+let voiceHelpShown = false;
+async function say(text, rate = state.settings.ttsRate, force = false) {
+  if (!state.settings.sound && !force) return 'off';
+  const st = await speak(text, rate);
+  if (st !== 'ok' && (!voiceHelpShown || force)) { voiceHelpShown = true; voiceHelp(st); }
+  return st;
+}
+// Explains in Hebrew why there is no sound, with a button to install an English voice.
+function voiceHelp(status) {
+  const close = () => back.remove();
+  const msg = status === 'no-english'
+    ? 'בטלפון שלך לא מותקן קול באנגלית, ולכן אי אפשר להשמיע את המילים.'
+    : 'לא נמצא בטלפון מנוע הקראה (Text-to-speech), ולכן אי אפשר להשמיע את המילים.';
+  const back = h('div', { class: 'modal-back', onclick: (e) => { if (e.target === back) close(); } },
+    h('div', { class: 'modal stack', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'vh-t' },
+      h('h2', { id: 'vh-t' }, '🔇 אין קול באנגלית'),
+      h('p', {}, msg),
+      h('ol', { style: 'padding-inline-start:20px;margin:0' },
+        h('li', {}, 'לחצו על "התקנת קול באנגלית" למטה.'),
+        h('li', {}, 'בחרו English (United States) והורידו.'),
+        h('li', {}, 'אם לא נפתח כלום: הגדרות הטלפון ← חפשו "המרת טקסט לדיבור" ← מנוע מועדף: Google ← התקנת נתוני קול ← English.'),
+        h('li', {}, 'אם אין "Google" ברשימה: התקינו מ־Google Play את "Speech Services by Google".')),
+      h('button', { class: 'btn', onclick: async () => { const ok = await openVoiceInstall(); if (!ok) toast('פתחו ידנית: הגדרות ← המרת טקסט לדיבור'); } }, '⬇️ התקנת קול באנגלית'),
+      h('button', { class: 'btn secondary', onclick: close }, 'סגירה')));
+  document.body.append(back);
+  back.querySelector('.btn').focus();
+}
 function applySettings() {
   const r = document.documentElement;
   if (state.settings.theme === 'auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', state.settings.theme);
@@ -195,7 +221,7 @@ function drawExercise(main) {
     const reveal = h('p', { class: 'muted center', hidden: canHear }, 'אין קול במכשיר? המילה היא: ', en(ex.prompt));
     body = [h('div', { class: 'instr' }, 'הקשיבו ובחרו מה שמעתם'),
       h('button', { class: 'speak-big', 'aria-label': 'השמעה', onclick: () => say(ex.prompt) }, '🔊'),
-      canHear ? h('p', { class: 'center' }, h('button', { class: 'btn ghost', style: 'width:auto', onclick: () => speak(ex.prompt, 0.55) }, '🐢 לאט יותר'), h('button', { class: 'btn ghost', style: 'width:auto', onclick: () => { reveal.hidden = false; } }, 'לא שומע/ת')) : null,
+      canHear ? h('p', { class: 'center' }, h('button', { class: 'btn ghost', style: 'width:auto', onclick: () => say(ex.prompt, 0.55, true) }, '🐢 לאט יותר'), h('button', { class: 'btn ghost', style: 'width:auto', onclick: () => { reveal.hidden = false; } }, 'לא שומע/ת')) : null,
       reveal, optionList(ex.options, true, setResponse)];
     setTimeout(() => say(ex.prompt), 300);
   } else if (ex.type === 'build') {
@@ -386,6 +412,11 @@ function settings() {
     h('div', { class: 'row' }, h('a', { class: 'icon-btn', href: '#/profile', 'aria-label': 'חזרה' }, '→'), h('h1', { style: 'margin:0' }, 'הגדרות')),
     h('section', { class: 'card' }, h('h2', {}, 'לימוד'),
       sw('🔊 השמעת קול', 'sound'),
+      h('div', { class: 'setting' }, h('span', { class: 'spacer' }, 'לא שומעים כלום?'),
+        h('button', { class: 'btn secondary', style: 'width:auto;min-height:44px', onclick: async () => {
+          const st = await say('Hello! The sound is working.', state.settings.ttsRate, true);
+          if (st === 'ok') toast('אם לא שמעתם – הגבירו את עוצמת המדיה בטלפון 🔊');
+        } }, '🔈 בדיקת קול')),
       sel('מהירות דיבור', 'rate', st.ttsRate, [[0.6, 'איטית'], [0.85, 'רגילה'], [1, 'מהירה']], (v) => (st.ttsRate = Number(v))),
       sel('🎯 יעד יומי', 'goal', p.dailyGoalXp, [[10, 'קליל – 10'], [20, 'רגיל – 20'], [40, 'רציני – 40'], [60, 'אינטנסיבי – 60']], (v) => (p.dailyGoalXp = Number(v)))),
     h('section', { class: 'card' }, h('h2', {}, 'תצוגה ונגישות'),
@@ -401,6 +432,7 @@ function settings() {
 
 // ---------- boot ----------
 applySettings();
+warmUp();
 if (state.profile.onboarded) ads.initAds(state).then((ok) => { persist(); if (ok && ['home', 'practice', 'words', 'profile', 'settings'].includes(current)) ads.showBanner(); });
 render();
 window.__safa = { state: () => state, store, go };

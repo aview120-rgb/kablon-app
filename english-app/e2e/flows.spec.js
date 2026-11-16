@@ -145,3 +145,16 @@ test('B04 feedback sheet is removed when leaving the lesson (Android back button
   await expect(page).toHaveURL(/#\/home/);
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
 });
+
+test('B06 no English voice on the phone: app explains and offers install instead of staying silent', async ({ page }) => {
+  await page.addInitScript(() => { delete window.speechSynthesis; delete Window.prototype.speechSynthesis; Object.defineProperty(window, 'speechSynthesis', { value: undefined, configurable: true }); });
+  await onboard(page);
+  await page.goto('/#/settings');
+  await page.getByRole('button', { name: /בדיקת קול/ }).click();
+  const dlg = page.getByRole('dialog', { name: /אין קול באנגלית/ });
+  await expect(dlg).toBeVisible();
+  await expect(dlg.getByRole('button', { name: /התקנת קול באנגלית/ })).toBeVisible();
+  await axe(page);
+  await dlg.getByRole('button', { name: 'סגירה' }).click();
+  await expect(dlg).toHaveCount(0);
+});
