@@ -4,5 +4,4 @@
   <path d="M232 300c0-50 40-90 90-90h380c50 0 90 40 90 90v260c0 50-40 90-90 90H470l-150 120v-120h0c-50 0-88-40-88-90z" fill="#fff"/>
   <text x="400" y="535" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="250" fill="#5534d4" text-anchor="middle">A</text>
   <text x="625" y="535" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="250" fill="#ff8a3d" text-anchor="middle">א</text>
-  <circle cx="800" cy="780" r="70" fill="#ff8a3d"/>
 </svg>

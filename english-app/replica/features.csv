@@ -1,32 +1,35 @@
 feature,area,priority,original,clone,notes
-Onboarding: choose goal and level,onboarding,must,yes,no,
-Privacy + ad consent screen,onboarding,must,yes,no,UMP for EEA/UK; local notice for all
-Learning path of units and lessons,home,must,yes,no,
-Lessons unlock in order,home,must,yes,no,
-Multiple-choice translation exercise,lesson,must,yes,no,
-Build-the-sentence (word bank) exercise,lesson,must,yes,no,
-Type the answer exercise,lesson,should,yes,no,tolerant matching
-Listen and choose (text-to-speech),lesson,must,yes,no,device TTS - no audio files
-Match pairs exercise,lesson,should,yes,no,
-Immediate feedback with correct answer,lesson,must,yes,no,
-Hebrew hint/explanation per exercise,lesson,must,no,no,our differentiator
-Lesson complete screen with XP and accuracy,lesson,must,yes,no,
-Daily streak with weekly freeze,motivation,must,yes,no,
-Daily XP goal,motivation,should,yes,no,
-Weekly XP chart,profile,should,yes,no,
-Spaced repetition review of mistakes,practice,must,yes,no,Leitner boxes
-My words dictionary with audio,practice,should,yes,no,
-Hebrew false-friends and pronunciation tips unit,content,should,no,no,our differentiator
-Works offline,platform,must,yes,no,all content bundled
-RTL Hebrew interface,platform,must,no,no,
-Dark mode,platform,should,yes,no,
-Accessibility (IS 5568 / WCAG AA),platform,must,yes,no,Israeli law
-Banner ad on home,monetization,must,yes,no,AdMob
-Interstitial ad after lessons (capped),monetization,should,yes,no,max 1 per 3 lessons
-Rewarded ad for streak freeze,monetization,could,yes,no,
-Privacy policy / terms / accessibility statement,legal,must,yes,no,
+Onboarding: choose goal and level,onboarding,must,yes,yes,
+Privacy + ad consent screen,onboarding,must,yes,yes,UMP for EEA/UK; local notice for all
+Learning path of units and lessons,home,must,yes,yes,
+Lessons unlock in order,home,must,yes,yes,
+Multiple-choice translation exercise,lesson,must,yes,yes,
+Build-the-sentence (word bank) exercise,lesson,must,yes,yes,
+Type the answer exercise,lesson,should,yes,yes,tolerant matching
+Listen and choose (text-to-speech),lesson,must,yes,yes,device TTS - no audio files
+Match pairs exercise,lesson,should,yes,yes,
+Immediate feedback with correct answer,lesson,must,yes,yes,
+Hebrew hint/explanation per exercise,lesson,must,no,yes,our differentiator
+Lesson complete screen with XP and accuracy,lesson,must,yes,yes,
+Daily streak with weekly freeze,motivation,must,yes,yes,
+Daily XP goal,motivation,should,yes,yes,
+Weekly XP chart,profile,should,yes,yes,
+Spaced repetition review of mistakes,practice,must,yes,yes,Leitner boxes
+My words dictionary with audio,practice,should,yes,yes,
+Hebrew false-friends and pronunciation tips unit,content,should,no,yes,our differentiator
+Works offline,platform,must,yes,yes,all content bundled
+RTL Hebrew interface,platform,must,no,yes,
+Dark mode,platform,should,yes,yes,
+Accessibility (IS 5568 / WCAG AA),platform,must,yes,yes,axe AA clean on every screen; real-device TalkBack check pending
+Banner ad on home,monetization,must,yes,yes,AdMob
+Interstitial ad after lessons (capped),monetization,should,yes,yes,max 1 per 3 lessons
+Rewarded ad for streak freeze,monetization,could,yes,yes,
+Privacy policy / terms / accessibility statement,legal,must,yes,yes,
 Local reminders,motivation,could,yes,no,
-Social leagues and friends,social,skip,yes,no,needs server; privacy risk
-Human corrections community,social,skip,yes,no,needs moderation
+Social leagues and friends,social,skip,yes,skip,needs server; privacy risk
+Human corrections community,social,skip,yes,skip,needs moderation
 Speech recognition grading,lesson,could,yes,no,later version
-Paid subscription,monetization,skip,yes,no,user wants free + ads
+Paid subscription,monetization,skip,yes,skip,user wants free + ads
+Unlimited free lessons (no energy or hearts limit),motivation,must,no,yes,fix for theme 1
+No ads inside lessons + interstitial cap,monetization,must,no,yes,fix for theme 2
+No push notifications in v1,motivation,should,no,yes,fix for theme 3

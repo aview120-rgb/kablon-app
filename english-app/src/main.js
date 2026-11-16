@@ -26,6 +26,10 @@ function h(tag, attrs = {}, ...kids) {
   return el;
 }
 const en = (text, extra = {}) => h('span', { lang: 'en', dir: 'ltr', ...extra }, text);
+// Hebrew text with English phrases inside: isolate each English run so punctuation lands in the right place.
+function mixed(str) {
+  return String(str).split(/([A-Za-z][A-Za-z0-9 '’,?!…\-]*[A-Za-z0-9?!]|[A-Za-z])/).filter(Boolean).map((part) => /^[A-Za-z]/.test(part) ? en(part) : part);
+}
 function announce(msg) { live.textContent = ''; setTimeout(() => (live.textContent = msg), 30); }
 function toast(msg) {
   const t = h('div', { class: 'toast', role: 'status' }, msg);
@@ -49,6 +53,7 @@ function render() {
   let r = routes[name] ? name : 'home';
   if (!state.profile.onboarded && r !== 'welcome') r = 'welcome';
   current = r;
+  document.querySelectorAll('.sheet, .modal-back').forEach((x) => x.remove());
   const tabs = ['home', 'practice', 'words', 'profile', 'settings'].includes(r);
   document.body.classList.toggle('no-tabs', !tabs);
   app.replaceChildren(routes[r](arg));
@@ -145,7 +150,7 @@ function home() {
         return h('button', { class: cls, 'aria-disabled': String(!open), 'data-lesson': l.id,
           'aria-label': `${u.he}, שיעור ${i + 1}: ${l.he}. ${d ? 'הושלם' : open ? 'פתוח' : 'נעול'}`,
           onclick: () => open ? go('lesson/' + l.id) : toast('סיימו קודם את השיעור הקודם 🔒') },
-          h('span', { class: 'dot', 'aria-hidden': 'true' }, d ? '✓' : open ? '★' : '🔒'), h('span', { class: 'label' }, l.he));
+          h('span', { class: 'dot', 'aria-hidden': 'true' }, d ? '✓' : open ? '★' : '🔒'), h('span', { class: 'label' }, mixed(l.he)));
       }))));
   }
   return main;
@@ -266,7 +271,7 @@ function showFeedback(main, ex, res, next) {
       res.typo ? h('p', {}, 'שימו לב לכתיב: ', en(right)) : null,
       !res.ok && right ? h('p', {}, 'התשובה הנכונה: ', h('b', { lang: /[a-z]/i.test(right) ? 'en' : 'he' }, right)) : null,
       !res.ok && ex.type === 'match' ? h('p', {}, 'היו כמה טעויות – נחזור על המילים האלה בתרגול.') : null,
-      !res.ok && l?.tip ? h('p', { class: 'tip' }, '💡 ', l.tip) : null,
+      !res.ok && l?.tip ? h('p', { class: 'tip' }, '💡 ', mixed(l.tip)) : null,
       h('button', { class: `btn ${res.ok ? 'success' : 'danger'}`, onclick: () => { sheet.remove(); next(); } }, 'המשך')));
   document.body.append(sheet);
   if (/[a-z]/i.test(right || '')) say(right);

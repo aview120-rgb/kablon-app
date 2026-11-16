@@ -135,3 +135,13 @@ test('F02-E3 all answers wrong: lesson still ends (each mistake retried once), l
   await expect(page).toHaveURL(/#\/done/);
   await expect(page.getByText('💪')).toBeVisible();
 });
+
+test('B04 feedback sheet is removed when leaving the lesson (Android back button)', async ({ page }) => {
+  await onboard(page);
+  await page.getByRole('button', { name: /שלום ולהתראות/ }).click();
+  await answer(page, false);
+  await expect(page.getByRole('alertdialog')).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/home/);
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+});

@@ -10,3 +10,5 @@ Open S1/S2: **none**.
 
 ## To check (not reproduced)
 - Native banner overlapping the tab bar on very small phones (needs a real device; CSS reserves 64px).
+| B04 | S3 | Feedback sheet stayed on screen after leaving a lesson with the back button | fixed + e2e test |
+| B05 | S4 | English phrases inside Hebrew tips put punctuation on the wrong side | fixed: English runs isolated |
