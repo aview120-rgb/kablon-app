@@ -14,6 +14,20 @@ android {
         versionCode = 1
         versionName = "1.0.0"
         resourceConfigurations += listOf("he", "en")
+
+        // --- Managed-filter configuration -------------------------------------
+        // Remote management server base URL (empty = not provisioned yet).
+        buildConfigField("String", "DEFAULT_SERVER_URL", "\"\"")
+        // How often (minutes) the device pulls policy from the server.
+        buildConfigField("int", "POLICY_SYNC_MINUTES", "15")
+
+        // --- Development maintenance escape hatch ------------------------------
+        // When MAINTENANCE_ENABLED is true, entering MAINTENANCE_CODE in the
+        // hidden maintenance screen fully disables the filter and releases
+        // device-admin so the app can be uninstalled. Set to false for a
+        // production/Netsmart-style build where only the server can release.
+        buildConfigField("boolean", "MAINTENANCE_ENABLED", "true")
+        buildConfigField("String", "MAINTENANCE_CODE", "\"\\u05D0.\\u05D9.\\u05E1.\\u05D7\\u05E1\\u05D9\\u05DE\\u05D5\\u05EA\"")
     }
 
     buildTypes {
@@ -29,6 +43,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 
     compileOptions {

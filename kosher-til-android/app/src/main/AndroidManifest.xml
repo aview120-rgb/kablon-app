@@ -31,9 +31,17 @@
             </intent-filter>
         </activity>
 
-        <!-- Full-screen block / unlock screen shown by the accessibility guard. -->
+        <!-- Full-screen block screen shown by the accessibility guard. -->
         <activity
-            android:name=".lock.UnlockActivity"
+            android:name=".lock.BlockActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.KosherTil.Block" />
+
+        <!-- Hidden development/maintenance screen (code release). -->
+        <activity
+            android:name=".lock.MaintenanceActivity"
             android:exported="false"
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
@@ -79,6 +87,10 @@
                 <action android:name="android.app.action.DEVICE_ADMIN_DISABLE_REQUESTED" />
             </intent-filter>
         </receiver>
+
+        <receiver
+            android:name=".boot.PolicyAlarmReceiver"
+            android:exported="false" />
 
         <receiver
             android:name=".boot.BootReceiver"

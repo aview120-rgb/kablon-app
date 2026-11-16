@@ -21,6 +21,15 @@ object Prefs {
     private const val KEY_FAIL_COUNT = "fail_count"
     private const val KEY_LOCKOUT_UNTIL = "lockout_until_ms"
 
+    // Managed-model fields.
+    private const val KEY_SERVER_URL = "server_url"
+    private const val KEY_DEVICE_ID = "device_id"
+    private const val KEY_MANAGER_CONTACT = "manager_contact"
+    private const val KEY_LAST_SYNC = "last_policy_sync_ms"
+    private const val KEY_POLICY_VERSION = "policy_version"
+    // Set once in production provisioning to burn the dev escape hatch.
+    private const val KEY_MAINT_DISABLED = "maintenance_disabled"
+
     @Volatile
     private var sp: SharedPreferences? = null
 
@@ -68,4 +77,44 @@ object Prefs {
     /** The filter should actively block right now. */
     fun filteringActiveNow(ctx: Context): Boolean =
         isEnabled(ctx) && System.currentTimeMillis() >= unlockUntil(ctx)
+
+    // --- Managed model -------------------------------------------------------
+
+    fun serverUrl(ctx: Context): String =
+        prefs(ctx).getString(KEY_SERVER_URL, "")!!
+
+    fun setServerUrl(ctx: Context, url: String) =
+        prefs(ctx).edit().putString(KEY_SERVER_URL, url.trim()).apply()
+
+    /** Stable per-install device id, generated on first use. */
+    fun deviceId(ctx: Context): String {
+        val existing = prefs(ctx).getString(KEY_DEVICE_ID, null)
+        if (!existing.isNullOrBlank()) return existing
+        val id = java.util.UUID.randomUUID().toString()
+        prefs(ctx).edit().putString(KEY_DEVICE_ID, id).apply()
+        return id
+    }
+
+    fun managerContact(ctx: Context): String =
+        prefs(ctx).getString(KEY_MANAGER_CONTACT, "")!!
+
+    fun setManagerContact(ctx: Context, value: String) =
+        prefs(ctx).edit().putString(KEY_MANAGER_CONTACT, value).apply()
+
+    fun lastSync(ctx: Context): Long = prefs(ctx).getLong(KEY_LAST_SYNC, 0L)
+
+    fun setLastSync(ctx: Context, ms: Long) =
+        prefs(ctx).edit().putLong(KEY_LAST_SYNC, ms).apply()
+
+    fun policyVersion(ctx: Context): Int = prefs(ctx).getInt(KEY_POLICY_VERSION, 0)
+
+    fun setPolicyVersion(ctx: Context, v: Int) =
+        prefs(ctx).edit().putInt(KEY_POLICY_VERSION, v).apply()
+
+    /** True when the development maintenance code has been permanently disabled. */
+    fun maintenanceDisabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_MAINT_DISABLED, false)
+
+    fun disableMaintenanceForever(ctx: Context) =
+        prefs(ctx).edit().putBoolean(KEY_MAINT_DISABLED, true).apply()
 }

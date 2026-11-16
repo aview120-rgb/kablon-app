@@ -12,6 +12,7 @@
         android:padding="20dp">
 
         <TextView
+            android:id="@+id/appTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
@@ -55,11 +56,20 @@
             android:orientation="vertical" />
 
         <Button
-            android:id="@+id/unlockButton"
+            android:id="@+id/requestReleaseButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="28dp"
-            android:text="@string/btn_enter_code"
+            android:text="בקשת שחרור מהמנהל"
             style="?attr/materialButtonOutlinedStyle" />
+
+        <TextView
+            android:id="@+id/versionLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="center"
+            android:textColor="@color/muted"
+            android:textSize="12sp" />
     </LinearLayout>
 </ScrollView>
