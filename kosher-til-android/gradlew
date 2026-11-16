@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Minimal Gradle wrapper launcher. Requires gradle/wrapper/gradle-wrapper.jar
+# (generate locally with: gradle wrapper --gradle-version 8.9).
+DIR=$(cd "$(dirname "$0")" && pwd)
+exec java -jar "$DIR/gradle/wrapper/gradle-wrapper.jar" "$@"

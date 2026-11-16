@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">כושר-טיל</string>
+    <string name="service_name">כושר-טיל</string>
+
+    <!-- Main screen -->
+    <string name="status_active">הסינון פעיל</string>
+    <string name="status_inactive">הסינון כבוי</string>
+    <string name="status_partial">הסינון פעיל חלקית — יש הרשאות חסרות</string>
+    <string name="btn_enable">הפעלת הסינון</string>
+    <string name="btn_enter_code">הזנת קוד שחרור</string>
+
+    <string name="perm_vpn">חיבור סינון (VPN מקומי)</string>
+    <string name="perm_accessibility">שירות נגישות (חסימת אפליקציות ואתרים)</string>
+    <string name="perm_admin">מנהל התקן (הגנה מפני הסרה)</string>
+    <string name="perm_overlay">הצגת מסך חסימה מעל אפליקציות</string>
+    <string name="perm_notifications">התראות</string>
+    <string name="perm_granted">מאושר</string>
+    <string name="perm_missing">נדרש אישור</string>
+    <string name="grant">אישור</string>
+
+    <!-- Block / unlock -->
+    <string name="blocked_title">כושר-טיל — תוכן חסום</string>
+    <string name="blocked_body">הגישה לתוכן זה חסומה על ידי מערכת הסינון.</string>
+    <string name="unlock_title">הזנת קוד שחרור</string>
+    <string name="unlock_hint">קוד שחרור</string>
+    <string name="unlock_ok">שחרור</string>
+    <string name="unlock_cancel">חזרה</string>
+    <string name="unlock_wrong">קוד שגוי</string>
+    <string name="unlock_locked_out">יותר מדי ניסיונות. נסה שוב בעוד %1$d שניות.</string>
+    <string name="unlock_done">הסינון שוחרר זמנית למשך %1$d דקות.</string>
+    <string name="go_home">חזרה למסך הבית</string>
+
+    <!-- Admin -->
+    <string name="admin_explanation">הרשאה זו מגִנה על אפליקציית הסינון ומונעת הסרה או שינוי לא מורשים. ניתן להסירה רק לאחר הזנת קוד שחרור.</string>
+
+    <!-- Notifications -->
+    <string name="notif_channel">מצב הסינון</string>
+    <string name="notif_active_title">כושר-טיל פעיל</string>
+    <string name="notif_active_text">הסינון מגן על המכשיר</string>
+
+    <!-- VPN consent re-ask -->
+    <string name="vpn_consent_needed">נדרש אישור חיבור הסינון</string>
+</resources>
