@@ -1,0 +1,57 @@
+name: build-apk
+
+on:
+  push:
+    branches: [claude/netsmart-like-app-1hx8d2]
+    paths:
+      - 'kosher-til-android/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: yes | sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build debug APK
+        working-directory: kosher-til-android
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kosher-til-debug-apk
+          path: kosher-til-android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Publish to a stable Release (direct download link)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: kosher-til-latest
+          name: כושר-טיל — גרסת debug אחרונה
+          body: |
+            APK להתקנה ישירה (debug). הורד את app-debug.apk והתקן במכשיר אנדרואיד.
+            נבנה אוטומטית מהענף claude/netsmart-like-app-1hx8d2.
+          files: kosher-til-android/app/build/outputs/apk/debug/app-debug.apk
+          prerelease: true
