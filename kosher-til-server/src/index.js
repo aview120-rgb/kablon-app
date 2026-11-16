@@ -10,6 +10,23 @@ import {
 } from './auth.js';
 import { loginPage, setupPage, panelPage } from './pages.js';
 
+// Schema is applied automatically on first request so no manual migration
+// step is needed (works with the one-click "Deploy to Cloudflare" flow).
+const SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS managers (username TEXT PRIMARY KEY, salt TEXT NOT NULL, hash TEXT NOT NULL, created_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, username TEXT NOT NULL, expires_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS devices (id TEXT PRIMARY KEY, label TEXT DEFAULT '', enabled INTEGER NOT NULL DEFAULT 1, unlock_until INTEGER NOT NULL DEFAULT 0, manager_contact TEXT DEFAULT '', policy_version INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, last_seen INTEGER NOT NULL DEFAULT 0)`,
+  `CREATE TABLE IF NOT EXISTS unlock_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, device_id TEXT NOT NULL, reason TEXT DEFAULT '', ts INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'open')`,
+  `CREATE INDEX IF NOT EXISTS idx_requests_status ON unlock_requests(status)`,
+];
+
+let schemaReady = false;
+async function ensureSchema(env) {
+  if (schemaReady) return;
+  await env.DB.batch(SCHEMA.map((s) => env.DB.prepare(s)));
+  schemaReady = true;
+}
+
 const json = (obj, status = 200, headers = {}) =>
   new Response(JSON.stringify(obj), {
     status,
@@ -34,6 +51,8 @@ export default {
     const method = request.method;
 
     try {
+      await ensureSchema(env);
+
       // ---- Device API ----------------------------------------------------
       let m = path.match(/^\/api\/device\/([^/]+)\/policy$/);
       if (m && method === 'GET') return devicePolicy(env, decodeURIComponent(m[1]));
