@@ -2,15 +2,21 @@
 // Returns a status so the UI can explain *why* there is no sound instead of staying silent.
 import { Capacitor } from '@capacitor/core';
 
-let native = null;
+// IMPORTANT: a Capacitor plugin object is a Proxy that answers *every* property, including `then`.
+// Returning it from an async function (or awaiting it) makes JS treat it as a promise and wait forever.
+// So we keep it inside a plain wrapper object { tts } and never return/await the plugin itself.
+let holder = null; // { tts: plugin | null }
 let nativeLang = null; // the English variant this phone's engine actually supports
 const EN_VARIANTS = ['en-US', 'en-GB', 'en-AU', 'en-IN', 'en'];
 
 async function nativeTts() {
-  if (native !== null) return native;
-  if (!Capacitor.isNativePlatform()) return (native = false);
-  try { native = (await import('@capacitor-community/text-to-speech')).TextToSpeech; } catch { native = false; }
-  return native;
+  if (holder) return holder;
+  if (!Capacitor.isNativePlatform()) return (holder = { tts: null });
+  try {
+    const mod = await import('@capacitor-community/text-to-speech');
+    holder = { tts: mod.TextToSpeech };
+  } catch { holder = { tts: null }; }
+  return holder;
 }
 
 // Android's engine starts asynchronously; wait until it answers (max ~3s).
@@ -41,13 +47,13 @@ export function ttsAvailable() {
 
 // Call once at startup so the first word is not lost while the engine boots.
 export async function warmUp() {
-  const n = await nativeTts();
-  if (n) ensureNativeLang(n);
+  const { tts } = await nativeTts();
+  if (tts) ensureNativeLang(tts);
 }
 
 /** @returns {Promise<'ok'|'no-english'|'no-engine'|'error'>} */
 export async function speak(text, rate = 0.85) {
-  const n = await nativeTts();
+  const { tts: n } = await nativeTts();
   if (n) {
     const lang = await ensureNativeLang(n);
     if (lang === undefined) return webSpeak(text, rate) ? 'ok' : 'no-engine';
@@ -77,7 +83,7 @@ function webSpeak(text, rate) {
 
 // Opens Android's "install voice data" screen.
 export async function openVoiceInstall() {
-  const n = await nativeTts();
+  const { tts: n } = await nativeTts();
   if (!n) return false;
   try { await n.openInstall(); return true; } catch { return false; }
 }
