@@ -1,0 +1,14 @@
+name = "kosher-til-server"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+
+# D1 database binding. Create it once with:
+#   wrangler d1 create kosher_til
+# then paste the returned database_id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "kosher_til"
+database_id = "REPLACE_WITH_YOUR_DATABASE_ID"
+
+[observability]
+enabled = true
