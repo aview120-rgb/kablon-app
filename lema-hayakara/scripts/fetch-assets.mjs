@@ -1,8 +1,9 @@
 // Downloads fonts and AI models (too big for git) and verifies their checksums.
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import crypto from 'crypto';
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const items = JSON.parse(fs.readFileSync(path.join(root, 'scripts/assets.json'), 'utf8'));
 const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
 let fetched = 0;

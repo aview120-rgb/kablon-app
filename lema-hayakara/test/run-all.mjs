@@ -1,13 +1,14 @@
 // Engine test-suite: run with `npm test`. Writes sample files to test/out for format validation.
 import fs from 'fs';
 import assert from 'assert/strict';
+import { fileURLToPath } from 'url';
 import { makeImage } from '../src/engine/raster.js';
 import { digitizeImage, compileDesign, toPattern, designStats, centerObjects, patternToObjects, mergeSimilarColors, transformObjects, designBounds } from '../src/engine/design.js';
 import { writeDST, writePES, writeJEF, writeEXP, readDST, readEXP, STITCH, COLOR, JUMP } from '../src/engine/formats.js';
 import { setFontLoader, textToShapes } from '../src/engine/text.js';
 import { photoLines } from '../src/engine/photo.js';
 
-const OUT = new URL('./out/', import.meta.url).pathname;
+const OUT = fileURLToPath(new URL('./out/', import.meta.url));
 fs.mkdirSync(OUT, { recursive: true });
 setFontLoader(async (f) => fs.readFileSync(new URL('../public/fonts/' + f, import.meta.url)));
 let passed = 0;

@@ -361,7 +361,12 @@ async function regenerateText(obj, t) {
     const tmp = [{ id: 'x', shapes: r.shapes }];
     const bb = designBounds(tmp);
     const cx = (bb.minX + bb.maxX) / 2, cy = (bb.minY + bb.maxY) / 2;
-    const pos = t.pos || { x: 0, y: 0 };
+    // existing text keeps its current place (after any resize/rotate); new text uses t.pos
+    let pos = t.pos || { x: 0, y: 0 };
+    if (obj.shapes && obj.shapes.length) {
+      const cb = designBounds([{ shapes: obj.shapes }]);
+      pos = { x: (cb.minX + cb.maxX) / 2, y: (cb.minY + cb.maxY) / 2 };
+    }
     const shapes = r.shapes.map((s) => ({ outer: s.outer.map((p) => ({ x: p.x - cx + pos.x, y: p.y - cy + pos.y })), holes: s.holes.map((h) => h.map((p) => ({ x: p.x - cx + pos.x, y: p.y - cy + pos.y }))), width: s.width }));
     Object.assign(obj, { type: 'text', shapes, text: { ...t, heightMm: t.heightMm }, name: 'טקסט: ' + t.value.slice(0, 14) });
     obj.stitch = { ...(obj.stitch || {}), kind: t.kind || 'auto' };
@@ -718,6 +723,12 @@ function packedToBlocks() {
 }
 
 function safeName(s) { return (s || 'design').replace(/[\\/:*?"<>|]+/g, '_').trim().slice(0, 60) || 'design'; }
+function machineName(s) {
+  const l = (s || '').replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24);
+  if (l.length >= 2) return l;
+  const d = new Date();
+  return `design-${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`;
+}
 function latinName(s) { const l = (s || '').replace(/[^A-Za-z0-9_-]+/g, ''); return l || 'design'; }
 
 function exportDialog() {
@@ -727,7 +738,7 @@ function exportDialog() {
   modal(`
     <h2>שמירה למכונה</h2>
     ${errors.length ? `<div class="card" style="background:#fdeceb"><b>⛔ שימו לב:</b><ul>${errors.map((e) => `<li>${esc(e.text)}</li>`).join('')}</ul></div>` : '<div class="card" style="background:#e9f6ee">✅ הבדיקות עברו – אפשר לרקום.</div>'}
-    <div class="field"><label>שם הקובץ</label><input type="text" id="fn" value="${esc(safeName(P.name))}" /></div>
+    <div class="field"><label>שם הקובץ</label><input type="text" id="fn" dir="ltr" value="${esc(machineName(P.name))}" /><div class="hint">מומלץ שם באותיות אנגליות ומספרים – לא כל מכונות הרקמה מציגות עברית במסך.</div></div>
     <div class="field"><div class="label">פורמט</div><div class="choice" id="fmts">
       ${Object.entries(FORMATS).map(([k, f]) => `<button data-f="${k}" class="${k === fmt ? 'on' : ''}"><b>${esc(f.label)}</b>${k === 'dst' ? '<small>מומלץ למכונת SWF ✓</small>' : ''}</button>`).join('')}
     </div></div>
