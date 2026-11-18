@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#7a2e5c" />
+  <title>לאמא היקרה</title>
+  <link rel="icon" href="./icon.png" />
+</head>
+<body>
+  <div id="app">
+    <!-- HOME -->
+    <section id="home" class="view active">
+      <header class="topbar">
+        <div class="brand"><img src="./icon.png" alt="" class="logo" /><div><h1>לאמא היקרה</h1><p class="sub">ממירים כל תמונה, לוגו או טקסט לקובץ רקמה</p></div></div>
+        <button class="icon-btn" id="btnSettings" title="הגדרות ועדכונים" aria-label="הגדרות">⚙️</button>
+      </header>
+      <main class="home-main">
+        <div class="big-actions">
+          <button class="big" data-start="image"><span class="ico">🖼️</span><b>תמונה / לוגו</b><small>JPG, PNG, PDF, SVG ועוד</small></button>
+          <button class="big" data-start="photo"><span class="ico">🌄</span><b>תמונת צילום / נוף</b><small>אנשים, נופים, חיות</small></button>
+          <button class="big" data-start="text"><span class="ico">✍️</span><b>טקסט</b><small>עברית, אנגלית וכל השפות</small></button>
+          <button class="big" data-start="open"><span class="ico">🧵</span><b>פתיחת קובץ רקמה</b><small>DST / EXP קיים</small></button>
+        </div>
+        <h2 class="section-title">העבודות שלי</h2>
+        <div id="recent" class="recent"></div>
+      </main>
+    </section>
+
+    <!-- EDITOR -->
+    <section id="editor" class="view">
+      <header class="topbar compact">
+        <button class="icon-btn" id="btnBack" aria-label="חזרה">→</button>
+        <input id="projName" class="proj-name" value="עיצוב חדש" aria-label="שם העיצוב" />
+        <button class="primary" id="btnExport">💾 שמירה למכונה</button>
+      </header>
+      <div class="editor-body">
+        <div class="stage">
+          <canvas id="canvas"></canvas>
+          <div class="stage-tools">
+            <button class="round" id="zoomIn" aria-label="הגדלה">＋</button>
+            <button class="round" id="zoomOut" aria-label="הקטנה">－</button>
+            <button class="round" id="zoomFit" aria-label="התאמה למסך">⤢</button>
+          </div>
+          <div class="stage-info" id="stageInfo"></div>
+          <div class="busy" id="busy" hidden><div class="spinner"></div><span id="busyText">עובד…</span></div>
+          <div class="sim" id="simBar" hidden>
+            <button class="round" id="simPlay" aria-label="הפעלה">▶</button>
+            <input type="range" id="simRange" min="0" max="1000" value="1000" aria-label="התקדמות הרקמה" />
+            <button class="round" id="simClose" aria-label="סגירה">✕</button>
+          </div>
+        </div>
+        <div class="warnings" id="warnings"></div>
+        <nav class="tabs" id="tabs">
+          <button data-tab="size" class="active">📏 גודל</button>
+          <button data-tab="colors">🎨 צבעים</button>
+          <button data-tab="stitch">🪡 תפרים</button>
+          <button data-tab="image" id="tabImageBtn">🖼️ תמונה</button>
+          <button data-tab="text">✍️ טקסט</button>
+          <button data-tab="view">👁️ תצוגה</button>
+        </nav>
+        <div class="panel" id="panel"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal" id="modal" hidden><div class="modal-card" role="dialog" aria-modal="true"><div id="modalBody"></div></div></div>
+  <div class="toast" id="toast" hidden></div>
+  <input type="file" id="fileImage" accept="image/*,.pdf,.svg,application/pdf" hidden />
+  <input type="file" id="fileEmb" accept=".dst,.exp,.DST,.EXP" hidden />
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

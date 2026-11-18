@@ -1,0 +1,144 @@
+name: לאמא היקרה – build Android + Windows
+
+on:
+  push:
+    branches: [main, claude/file-converter-app-68972l]
+    paths:
+      - 'lema-hayakara/**'
+      - '.github/workflows/lema-hayakara.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lema-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_DIR: lema-hayakara
+  ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: lema-hayakara } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: lema-hayakara/package-lock.json }
+      - uses: actions/cache@v4
+        with: { path: lema-hayakara/public/fonts, key: fonts-${{ hashFiles('lema-hayakara/scripts/assets.json') }} }
+      - uses: actions/cache@v4
+        with: { path: lema-hayakara/public/models, key: models-${{ hashFiles('lema-hayakara/scripts/assets.json') }} }
+      - run: npm ci
+      - run: npm run assets
+      - run: npm test
+      - name: Validate embroidery files with an independent reader (pyembroidery)
+        run: |
+          pip install pyembroidery
+          python3 -I test/validate.py test/out/logo.dst test/out/logo.pes test/out/logo.jef test/out/logo.exp test/out/photo.dst
+      - run: npm run build
+
+  android:
+    needs: test
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: lema-hayakara } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: lema-hayakara/package-lock.json }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - uses: actions/cache@v4
+        with: { path: lema-hayakara/public/fonts, key: fonts-${{ hashFiles('lema-hayakara/scripts/assets.json') }} }
+      - uses: actions/cache@v4
+        with: { path: lema-hayakara/public/models, key: models-${{ hashFiles('lema-hayakara/scripts/assets.json') }} }
+      - run: npm ci
+      - run: npm run assets
+      - name: Set version
+        run: npm version --no-git-tag-version --allow-same-version 1.0.${{ github.run_number }}
+      - run: npm run build
+      - run: npx cap sync android
+      - name: Prepare signing key
+        working-directory: lema-hayakara/android
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          mkdir -p keystore
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > keystore/lema-release.jks
+            PW="$KEYSTORE_PASSWORD"
+            echo "Using the permanent signing key from repository secrets."
+          else
+            echo "::warning::ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASSWORD secrets are missing – using a temporary key. Updates will NOT install over this build."
+            PW=$(openssl rand -hex 16)
+            keytool -genkeypair -keystore keystore/lema-release.jks -alias lema -keyalg RSA -keysize 2048 -validity 36500 -storepass "$PW" -keypass "$PW" -dname "CN=LeImaHayakara, O=LeImaHayakara, C=IL"
+          fi
+          printf "storeFile=../keystore/lema-release.jks\nstorePassword=%s\nkeyAlias=lema\nkeyPassword=%s\n" "$PW" "$PW" > keystore/signing.properties
+      - name: Build signed APK
+        working-directory: lema-hayakara/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease -PappVersionCode=${{ github.run_number }} -PappVersionName=1.0.${{ github.run_number }}
+      - name: Rename APK
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/release/app-release.apk "out/LeImaHayakara-${{ github.run_number }}.apk"
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with: { name: android, path: lema-hayakara/out/*.apk, retention-days: 14 }
+
+  windows:
+    needs: test
+    runs-on: windows-latest
+    defaults: { run: { working-directory: lema-hayakara } }
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: lema-hayakara/package-lock.json }
+      - uses: actions/cache@v4
+        with: { path: lema-hayakara/public/fonts, key: fonts-${{ hashFiles('lema-hayakara/scripts/assets.json') }}, enableCrossOsArchive: true }
+      - uses: actions/cache@v4
+        with: { path: lema-hayakara/public/models, key: models-${{ hashFiles('lema-hayakara/scripts/assets.json') }}, enableCrossOsArchive: true }
+      - run: npm ci
+      - run: npm run assets
+      - name: Set version
+        run: npm version --no-git-tag-version --allow-same-version 1.0.${{ github.run_number }}
+      - run: npm run build
+      - name: Build Windows installer
+        run: npx electron-builder --win --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          retention-days: 14
+          path: |
+            lema-hayakara/release/*.exe
+            lema-hayakara/release/*.blockmap
+            lema-hayakara/release/latest.yml
+
+  release:
+    needs: [android, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: files, merge-multiple: true }
+      - run: ls -la files
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: לאמא היקרה – גרסה 1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: 'true'
+          body: |
+            ## הורדה
+            - **אנדרואיד:** הורידו את קובץ ה-`.apk`, פתחו אותו ואשרו "התקנה ממקור לא ידוע" (פעם אחת).
+            - **Windows:** הורידו את `LeImaHayakara-Setup-….exe` ולחצו עליו פעמיים. אם מופיעה אזהרה כחולה – "מידע נוסף" ← "הפעל בכל זאת".
+
+            עדכון מותקן מעל הגרסה הקיימת – לא צריך למחוק, והעבודות השמורות נשארות.
+          files: files/*

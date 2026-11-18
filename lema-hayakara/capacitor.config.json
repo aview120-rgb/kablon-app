@@ -1,0 +1,7 @@
+{
+  "appId": "com.lemahayakara.app",
+  "appName": "לאמא היקרה",
+  "webDir": "dist",
+  "android": { "allowMixedContent": false, "webContentsDebuggingEnabled": false },
+  "server": { "androidScheme": "https" }
+}

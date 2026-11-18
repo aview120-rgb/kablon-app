@@ -1,0 +1,13 @@
+node_modules/
+dist/
+dist-electron/
+release/
+public/fonts/*.ttf
+public/models/
+public/ort/
+android/app/build/
+android/.gradle/
+android/build/
+android/app/src/main/assets/public/
+*.log
+test/out/
