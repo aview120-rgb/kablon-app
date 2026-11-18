@@ -10,7 +10,7 @@ export const ADS = {
 };
 export const APP = {
   name: 'Safa',
-  contactEmail: 'REPLACE_WITH_YOUR_EMAIL@example.com', // shown in privacy policy & settings
+  contactEmail: 'a.y.s.app.development@gmail.com', // shown in privacy policy & settings
   privacyUrl: 'legal/privacy.html',
   version: '1.0.0',
 };

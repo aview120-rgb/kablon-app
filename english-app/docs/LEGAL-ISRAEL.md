@@ -33,4 +33,4 @@
 ## מה נשאר לך למלא (חובה לפני העלאה!)
 בקבצים `public/legal/privacy.html`, `terms.html`, `accessibility.html` ו־`src/config.js`:
 - `[שם מלא / שם העסק]` → השם שלך או של העסק
-- `REPLACE_WITH_YOUR_EMAIL@example.com` → אימייל ליצירת קשר (מומלץ אימייל נפרד לאפליקציה)
+- `a.y.s.app.development@gmail.com` → אימייל ליצירת קשר (מומלץ אימייל נפרד לאפליקציה)
