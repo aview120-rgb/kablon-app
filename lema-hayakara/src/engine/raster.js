@@ -389,3 +389,38 @@ export function toGray(img) {
   }
   return g;
 }
+
+// Merge regions that are thinner than minHalfWidthPx (e.g. anti-aliased edge rings)
+// into the neighbouring region they share the longest border with.
+export function mergeThinRegions(labels, w, h, minHalfWidthPx, { protect = null } = {}) {
+  const INF = 1e9;
+  const d = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, l = labels[i];
+    const edge = (x > 0 && labels[i - 1] !== l) || (x < w - 1 && labels[i + 1] !== l) || (y > 0 && labels[i - w] !== l) || (y < h - 1 && labels[i + w] !== l);
+    d[i] = edge ? 1 : INF;
+  }
+  const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? INF : d[y * w + x]);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x; d[i] = Math.min(d[i], at(x - 1, y) + 1, at(x, y - 1) + 1, at(x - 1, y - 1) + 1.414, at(x + 1, y - 1) + 1.414); }
+  for (let y = h - 1; y >= 0; y--) for (let x = w - 1; x >= 0; x--) { const i = y * w + x; d[i] = Math.min(d[i], at(x + 1, y) + 1, at(x, y + 1) + 1, at(x + 1, y + 1) + 1.414, at(x - 1, y + 1) + 1.414); }
+  const { comp, info } = components(labels, w, h);
+  const maxD = new Float32Array(info.length);
+  for (let i = 0; i < w * h; i++) if (d[i] < INF && d[i] > maxD[comp[i]]) maxD[comp[i]] = d[i];
+  const votes = new Map();
+  for (let p = 0; p < w * h; p++) {
+    const c = comp[p];
+    if (maxD[c] >= minHalfWidthPx || info[c].label < 0) continue;
+    if (protect && protect(info[c])) continue;
+    const x = p % w, y = (p - x) / w;
+    for (const q of [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, y > 0 ? p - w : -1, y < h - 1 ? p + w : -1]) {
+      if (q < 0 || comp[q] === c) continue;
+      let m = votes.get(c); if (!m) votes.set(c, (m = new Map()));
+      m.set(labels[q], (m.get(labels[q]) || 0) + 1);
+    }
+  }
+  const out = new Int16Array(labels);
+  const target = new Map();
+  for (const [c, m] of votes) { let best = null, bc = -1; for (const [l, n] of m) if (n > bc) { bc = n; best = l; } target.set(c, best); }
+  for (let p = 0; p < w * h; p++) { const t = target.get(comp[p]); if (t !== undefined && t !== null) out[p] = t; }
+  return out;
+}

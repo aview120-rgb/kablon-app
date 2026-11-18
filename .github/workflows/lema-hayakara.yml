@@ -22,15 +22,24 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults: { run: { working-directory: lema-hayakara } }
+    defaults:
+      run:
+        working-directory: lema-hayakara
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: lema-hayakara/package-lock.json }
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: lema-hayakara/package-lock.json
       - uses: actions/cache@v4
-        with: { path: lema-hayakara/public/fonts, key: fonts-${{ hashFiles('lema-hayakara/scripts/assets.json') }} }
+        with:
+          path: lema-hayakara/public/fonts
+          key: fonts-${{ hashFiles('lema-hayakara/scripts/assets.json') }}
       - uses: actions/cache@v4
-        with: { path: lema-hayakara/public/models, key: models-${{ hashFiles('lema-hayakara/scripts/assets.json') }} }
+        with:
+          path: lema-hayakara/public/models
+          key: models-${{ hashFiles('lema-hayakara/scripts/assets.json') }}
       - run: npm ci
       - run: npm run assets
       - run: npm test
@@ -43,17 +52,28 @@ jobs:
   android:
     needs: test
     runs-on: ubuntu-latest
-    defaults: { run: { working-directory: lema-hayakara } }
+    defaults:
+      run:
+        working-directory: lema-hayakara
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: lema-hayakara/package-lock.json }
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: lema-hayakara/package-lock.json
       - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: 21 }
+        with:
+          distribution: temurin
+          java-version: 21
       - uses: actions/cache@v4
-        with: { path: lema-hayakara/public/fonts, key: fonts-${{ hashFiles('lema-hayakara/scripts/assets.json') }} }
+        with:
+          path: lema-hayakara/public/fonts
+          key: fonts-${{ hashFiles('lema-hayakara/scripts/assets.json') }}
       - uses: actions/cache@v4
-        with: { path: lema-hayakara/public/models, key: models-${{ hashFiles('lema-hayakara/scripts/assets.json') }} }
+        with:
+          path: lema-hayakara/public/models
+          key: models-${{ hashFiles('lema-hayakara/scripts/assets.json') }}
       - run: npm ci
       - run: npm run assets
       - name: Set version
@@ -88,22 +108,36 @@ jobs:
           cp android/app/build/outputs/apk/release/app-release.apk "out/LeImaHayakara-${{ github.run_number }}.apk"
           ls -la out
       - uses: actions/upload-artifact@v4
-        with: { name: android, path: lema-hayakara/out/*.apk, retention-days: 14 }
+        with:
+          name: android
+          path: lema-hayakara/out/*.apk
+          retention-days: 14
 
   windows:
     needs: test
     runs-on: windows-latest
-    defaults: { run: { working-directory: lema-hayakara } }
+    defaults:
+      run:
+        working-directory: lema-hayakara
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: ''
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: lema-hayakara/package-lock.json }
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: lema-hayakara/package-lock.json
       - uses: actions/cache@v4
-        with: { path: lema-hayakara/public/fonts, key: fonts-${{ hashFiles('lema-hayakara/scripts/assets.json') }}, enableCrossOsArchive: true }
+        with:
+          path: lema-hayakara/public/fonts
+          key: fonts-${{ hashFiles('lema-hayakara/scripts/assets.json') }}
+          enableCrossOsArchive: true
       - uses: actions/cache@v4
-        with: { path: lema-hayakara/public/models, key: models-${{ hashFiles('lema-hayakara/scripts/assets.json') }}, enableCrossOsArchive: true }
+        with:
+          path: lema-hayakara/public/models
+          key: models-${{ hashFiles('lema-hayakara/scripts/assets.json') }}
+          enableCrossOsArchive: true
       - run: npm ci
       - run: npm run assets
       - name: Set version
@@ -127,7 +161,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
-        with: { path: files, merge-multiple: true }
+        with:
+          path: files
+          merge-multiple: true
       - run: ls -la files
       - uses: softprops/action-gh-release@v2
         with:

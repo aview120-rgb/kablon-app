@@ -1,6 +1,6 @@
 // Design model + image digitizing + compilation into a machine pattern.
 import {
-  quantize, modeFilter, removeSmallRegions, components, traceMask, borderLabel,
+  quantize, modeFilter, removeSmallRegions, mergeThinRegions, components, traceMask, borderLabel,
   labToRgb, rgbToHex, hexToRgb, rgbToLab, labDist, resizeImage, smoothImage, distanceTransform,
 } from './raster.js';
 import { ringsToShapes, simplifyRing, densifyRing, smoothRing, shapeArea, ringBounds, transformShape, dist, pointInShape } from './geom.js';
@@ -51,6 +51,11 @@ export function digitizeImage(img, opts = {}) {
   let labels = modeFilter(rawLabels, w, h, o.mode === 'photo' ? 1 : 2);
   const minArea = o.minAreaMm2 ?? (o.mode === 'photo' ? 1.2 : 0.6) * (1.2 - o.detail);
   const minPx = Math.max(3, Math.round(minArea / (mmPerPx * mmPerPx)));
+  labels = removeSmallRegions(labels, w, h, minPx);
+  // thin slivers along colour borders (anti-aliasing, JPEG noise) are merged away;
+  // in logo mode only very thin ones so real hairlines survive
+  const thinMm = o.mode === 'photo' ? 0.45 : 0.22;
+  labels = mergeThinRegions(labels, w, h, Math.max(1, thinMm / mmPerPx));
   labels = removeSmallRegions(labels, w, h, minPx);
 
   // merge palette entries that ended up visually identical
