@@ -42,7 +42,7 @@ test('F02-E1 wrong answer shows correct answer + Hebrew tip and is asked again',
   await page.getByRole('button', { name: /שלום ולהתראות/ }).click();
   const ex = await answer(page, false);
   const sheet = page.getByRole('alertdialog');
-  await expect(sheet).toContainText('לא בדיוק');
+  await expect(sheet).toContainText('❌');
   await expect(sheet).toContainText(ex.answer);
   await expect(sheet).toContainText('💡');
   await sheet.getByRole('button', { name: 'המשך' }).click();
@@ -128,7 +128,8 @@ test('F02-E3 all answers wrong: lesson still ends (each mistake retried once), l
   await page.getByRole('button', { name: /שלום ולהתראות/ }).click();
   let n = 0;
   for (; n < 40 && /#\/lesson/.test(page.url()); n++) {
-    await answer(page, false);
+    const ex = await answer(page, false);
+    if (ex.type === 'intro') continue;
     await page.getByRole('alertdialog').getByRole('button', { name: 'המשך' }).click();
   }
   expect(n).toBeLessThan(25);
@@ -157,4 +158,34 @@ test('B06 no English voice on the phone: app explains and offers install instead
   await axe(page);
   await dlg.getByRole('button', { name: 'סגירה' }).click();
   await expect(dlg).toHaveCount(0);
+});
+
+test('L01 total beginner starts with the ABC: intro card, then practice, lesson completes', async ({ page }) => {
+  const done = guard(page);
+  await onboard(page, { level: 'מתחיל לגמרי' });
+  await expect(page.getByRole('button', { name: /האותיות באנגלית, שיעור 1: אותיות A עד E. פתוח/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /צעדים ראשונים, שיעור 1: .* נעול/ })).toBeVisible();
+  await page.getByRole('button', { name: /אותיות A עד E/ }).click();
+  await expect(page.getByText('אות חדשה!')).toBeVisible();
+  await expect(page.getByText('אֵיי')).toBeVisible();
+  await axe(page);
+  await finishLesson(page);
+  await expect(page.getByText('סיימתם את השיעור!')).toBeVisible();
+  done();
+});
+
+test('L02 beginner can skip the letters unit', async ({ page }) => {
+  await onboard(page, { level: 'מתחיל לגמרי' });
+  page.once('dialog', (d) => d.accept());
+  await page.locator('section', { hasText: 'האותיות באנגלית' }).getByRole('button', { name: /דלג/ }).click();
+  await expect(page.getByRole('button', { name: /קוראים ראשונים, שיעור 1: .* פתוח/ })).toBeVisible();
+});
+
+test('L03 Hebrew voice can be switched off in settings', async ({ page }) => {
+  await onboard(page);
+  await page.goto('/#/settings');
+  const sw = page.getByRole('switch', { name: /הקראה גם בעברית/ });
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+  await sw.click();
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
 });

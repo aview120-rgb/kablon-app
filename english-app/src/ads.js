@@ -24,6 +24,12 @@ export async function initAds(state) {
     state.ads.consent = String(st.status || 'unknown').toLowerCase();
     canRequest = st.canRequestAds !== false;
     await AdMob.initialize({ initializeForTesting: ADS.testMode, ...audience() });
+    // The real banner height differs per phone (50–90dp): reserve exactly that much space for it.
+    AdMob.addListener('bannerAdSizeChanged', (size) => {
+      const hgt = Number(size?.height) || 0;
+      if (hgt > 0) { document.documentElement.style.setProperty('--banner-real-h', hgt + 'px'); document.body.classList.add('has-banner'); }
+      else document.body.classList.remove('has-banner');
+    });
     ready = true;
     return canRequest;
   } catch (e) { console.warn('ads init failed', e); return false; }
@@ -41,7 +47,7 @@ export async function showPrivacyOptions() {
 export async function showBanner() {
   if (!ready || !canRequest) return;
   try {
-    await AdMob.showBanner({ adId: ADS.bannerId, adSize: 'ADAPTIVE_BANNER', position: 'BOTTOM_CENTER', margin: 64, isTesting: ADS.testMode, npa: npa() });
+    await AdMob.showBanner({ adId: ADS.bannerId, adSize: 'ADAPTIVE_BANNER', position: 'BOTTOM_CENTER', margin: 0, isTesting: ADS.testMode, npa: npa() });
     document.body.classList.add('has-banner');
   } catch { /* no fill / offline */ }
 }

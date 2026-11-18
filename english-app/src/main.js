@@ -4,7 +4,8 @@ import * as store from './store.js';
 import { isDone, isUnlocked, nextLesson, completeLesson } from './progress.js';
 import { buildLesson, buildReview, check, shuffle } from './lesson-engine.js';
 import { seeWord, due } from './srs.js';
-import { speak, ttsAvailable, warmUp, openVoiceInstall } from './tts.js';
+import { speakParts, stopSpeaking, ttsAvailable, warmUp, openVoiceInstall } from './tts.js';
+import { sfx } from './sfx.js';
 import * as ads from './ads.js';
 import { APP } from './config.js';
 
@@ -37,9 +38,13 @@ function toast(msg) {
 }
 function persist() { store.save(); }
 let voiceHelpShown = false;
-async function say(text, rate = state.settings.ttsRate, force = false) {
+// say('word') or say([{ text, lang }, ...]) – Hebrew parts are skipped when the "Hebrew voice" setting is off.
+async function say(textOrParts, rate = state.settings.ttsRate, force = false) {
   if (!state.settings.sound && !force) return 'off';
-  const st = await speak(text, rate);
+  let parts = Array.isArray(textOrParts) ? textOrParts : [{ text: textOrParts }];
+  if (state.settings.speakHebrew === false) parts = parts.filter((p) => (p.lang || (/[\u0590-\u05FF]/.test(p.text) ? 'he' : 'en')) !== 'he');
+  if (!parts.length) return 'ok';
+  const st = await speakParts(parts, rate);
   if (st !== 'ok' && (!voiceHelpShown || force)) { voiceHelpShown = true; voiceHelp(st); }
   return st;
 }
@@ -80,6 +85,7 @@ function render() {
   if (!state.profile.onboarded && r !== 'welcome') r = 'welcome';
   current = r;
   document.querySelectorAll('.sheet, .modal-back').forEach((x) => x.remove());
+  stopSpeaking();
   const tabs = ['home', 'practice', 'words', 'profile', 'settings'].includes(r);
   document.body.classList.toggle('no-tabs', !tabs);
   app.replaceChildren(routes[r](arg));
@@ -141,7 +147,8 @@ function welcome() {
   }
   async function finish() {
     Object.assign(state.profile, { goal: draft.goal, level: draft.level, adult: draft.age === 'adult' ? true : draft.age, onboarded: true });
-    if (draft.level === 'A2') { for (const l of UNITS[0].lessons) state.progress[l.id] = { done: true, best: 1, at: new Date().toISOString(), skipped: true }; }
+    const skip = draft.level === 'A1' ? ['abc', 'read'] : draft.level === 'A2' ? ['abc', 'read', 'u1'] : [];
+    for (const u of UNITS.filter((x) => skip.includes(x.id))) skipUnit(u);
     persist();
     await ads.initAds(state); persist();
     go('home');
@@ -151,6 +158,9 @@ function welcome() {
   return root;
 }
 
+function skipUnit(u) {
+  for (const l of u.lessons) if (!isDone(state, l.id)) state.progress[l.id] = { done: true, best: 1, at: new Date().toISOString(), skipped: true };
+}
 // ---------- S03 home / path ----------
 function topbar() {
   const s = store.liveStreak(state);
@@ -169,7 +179,10 @@ function home() {
     const doneCount = u.lessons.filter((l) => isDone(state, l.id)).length;
     main.append(h('section', { class: 'unit', 'aria-labelledby': 'h-' + u.id },
       h('div', { class: 'unit-head' }, h('span', { class: 'em', 'aria-hidden': 'true' }, u.emoji),
-        h('div', {}, h('h2', { id: 'h-' + u.id, style: 'margin:0' }, u.he), h('small', {}, en(u.en), ` · ${doneCount}/${u.lessons.length}`))),
+        h('div', { class: 'spacer' }, h('h2', { id: 'h-' + u.id, style: 'margin:0' }, u.he), h('small', {}, en(u.en), ` · ${doneCount}/${u.lessons.length}`)),
+        u.skippable && doneCount < u.lessons.length ? h('button', { class: 'skip-unit', onclick: () => {
+          if (confirm(`כבר מכירים את "${u.he}"? אפשר לדלג, ותמיד לחזור לשיעורים האלה.`)) { skipUnit(u); persist(); render(); }
+        } }, 'כבר מכיר/ה – דלג') : null),
       h('div', { class: 'path' }, u.lessons.map((l, i) => {
         const d = isDone(state, l.id), open = isUnlocked(state, l.id), cur = nxt && nxt.id === l.id;
         const cls = `node ${d ? 'done' : open ? 'available' : 'locked'} ${cur ? 'current' : ''}`;
@@ -211,18 +224,33 @@ function drawExercise(main) {
   const setResponse = (v) => { response = v; checkBtn.disabled = v == null || v === '' || (Array.isArray(v) && !v.length); };
   let body = [];
 
-  if (ex.type === 'choice') {
-    body = [h('div', { class: 'instr' }, ex.dir === 'he-en' ? 'איך אומרים באנגלית?' : 'מה הפירוש?'),
-      h('div', { class: 'prompt' }, ex.dir === 'en-he' ? [speakBtn(ex.prompt), en(ex.prompt)] : ex.prompt),
-      optionList(ex.options, ex.dir === 'he-en', (v) => { setResponse(v); if (ex.dir === 'he-en') say(v); })];
-    if (ex.dir === 'en-he') setTimeout(() => say(ex.prompt), 250);
+  if (ex.type === 'intro') {
+    const it = ex.item;
+    const big = it.L === it.l ? it.L : `${it.L} ${it.l}`;
+    const parts = [{ text: it.say, lang: 'en' }, { text: `קוראים לה ${it.name}`, lang: 'he' }, { text: it.word, lang: 'en' }, { text: it.he, lang: 'he' }];
+    body = [h('div', { class: 'instr' }, it.L.length > 1 ? 'צליל חדש!' : 'אות חדשה!'),
+      h('div', { class: 'letter-card card center' },
+        h('div', { class: 'letter-big', lang: 'en', dir: 'ltr' }, big),
+        h('p', { class: 'letter-name' }, 'קוראים לה: ', h('b', {}, it.name)),
+        h('p', {}, 'כמו ב־', h('b', { lang: 'en', dir: 'ltr' }, mixedWord(it.word, it.l)), ` (${it.he})`),
+        h('button', { class: 'btn secondary', style: 'width:auto', onclick: () => say(parts, undefined, true) }, '🔊 שמיעה שוב'))];
+    setTimeout(() => say(parts), 250);
+    checkBtn.textContent = 'הבנתי, הלאה ←'; checkBtn.disabled = false; response = true;
+  } else if (ex.type === 'choice') {
+    const isEnOpts = ex.dir === 'he-en';
+    const promptParts = ex.dir === 'en-he' ? [{ text: ex.prompt, lang: 'en' }] : [{ text: ex.prompt, lang: 'he' }, ex.speakEn ? { text: ex.speakEn, lang: 'en' } : null].filter(Boolean);
+    body = [h('div', { class: 'instr' }, ex.letter ? 'בחרו את האות הנכונה' : ex.dir === 'he-en' ? 'איך אומרים באנגלית?' : 'מה הפירוש?'),
+      h('div', { class: 'prompt' }, speakBtn(promptParts), ex.dir === 'en-he' ? en(ex.prompt) : mixed(ex.prompt)),
+      optionList(ex.options, isEnOpts, (v) => { setResponse(v); say(ex.letter ? `the letter ${v}` : v); }, ex.letter)];
+    setTimeout(() => say(promptParts), 250);
   } else if (ex.type === 'listen') {
     const canHear = ttsAvailable();
-    const reveal = h('p', { class: 'muted center', hidden: canHear }, 'אין קול במכשיר? המילה היא: ', en(ex.prompt));
-    body = [h('div', { class: 'instr' }, 'הקשיבו ובחרו מה שמעתם'),
+    const reveal = h('p', { class: 'muted center', hidden: canHear }, 'אין קול במכשיר? התשובה היא: ', en(ex.show || ex.prompt));
+    const instr = ex.letter ? (ex.answer.length > 1 ? 'הקשיבו: באיזה צליל מתחילה המילה?' : 'הקשיבו ובחרו את האות') : 'הקשיבו ובחרו מה שמעתם';
+    body = [h('div', { class: 'instr' }, instr),
       h('button', { class: 'speak-big', 'aria-label': 'השמעה', onclick: () => say(ex.prompt) }, '🔊'),
       canHear ? h('p', { class: 'center' }, h('button', { class: 'btn ghost', style: 'width:auto', onclick: () => say(ex.prompt, 0.55, true) }, '🐢 לאט יותר'), h('button', { class: 'btn ghost', style: 'width:auto', onclick: () => { reveal.hidden = false; } }, 'לא שומע/ת')) : null,
-      reveal, optionList(ex.options, true, setResponse)];
+      reveal, optionList(ex.options, true, setResponse, ex.letter)];
     setTimeout(() => say(ex.prompt), 300);
   } else if (ex.type === 'build') {
     const picked = [];
@@ -234,10 +262,13 @@ function drawExercise(main) {
       line.replaceChildren(...picked.map((idx, pos) => h('button', { class: 'tile', lang: 'en', 'aria-label': `הסרה: ${ex.bank[idx]}`, onclick: () => { picked.splice(pos, 1); tiles[idx].classList.remove('used'); tiles[idx].removeAttribute('aria-hidden'); tiles[idx].tabIndex = 0; redraw(); } }, ex.bank[idx])));
       setResponse(picked.length ? picked.map((i) => ex.bank[i]).join(' ') : null);
     }
-    body = [h('div', { class: 'instr' }, 'תרגמו לאנגלית'), h('div', { class: 'prompt' }, ex.prompt), line, bank];
+    const pp = [{ text: ex.prompt, lang: 'he' }, ex.speakEn ? { text: ex.speakEn, lang: 'en' } : null].filter(Boolean);
+    body = [h('div', { class: 'instr' }, ex.display ? 'סדרו את האותיות' : 'תרגמו לאנגלית'), h('div', { class: 'prompt' }, speakBtn(pp), mixed(ex.prompt)), line, bank];
+    setTimeout(() => say(pp), 250);
   } else if (ex.type === 'type') {
     const inp = h('input', { class: 'text-in', type: 'text', lang: 'en', dir: 'ltr', autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', 'aria-label': 'כתבו באנגלית', placeholder: 'Type in English', oninput: (e) => setResponse(e.target.value.trim()), onkeydown: (e) => { if (e.key === 'Enter' && !checkBtn.disabled) submit(); } });
-    body = [h('div', { class: 'instr' }, 'כתבו באנגלית'), h('div', { class: 'prompt' }, ex.prompt), inp];
+    body = [h('div', { class: 'instr' }, 'כתבו באנגלית'), h('div', { class: 'prompt' }, speakBtn([{ text: ex.prompt, lang: 'he' }]), mixed(ex.prompt)), inp];
+    setTimeout(() => say([{ text: ex.prompt, lang: 'he' }]), 250);
     setTimeout(() => inp.focus(), 50);
   } else if (ex.type === 'match') {
     const left = shuffle(ex.pairs), right = shuffle(ex.pairs);
@@ -246,11 +277,12 @@ function drawExercise(main) {
     const mk = (w, side) => h('button', { class: 'chip', 'data-side': side, 'data-en': w.en, lang: side === 'en' ? 'en' : 'he', 'aria-pressed': 'false', onclick: (e) => tap(e.currentTarget, w, side) }, side === 'en' ? w.en : w.he);
     for (let i = 0; i < ex.pairs.length; i++) grid.append(mk(left[i], 'en'), mk(right[i], 'he'));
     function tap(btn, w, side) {
-      if (side === 'en') say(w.en);
+      if (ex.caseMatch) say(`the letter ${w.en}`);
+      else say(side === 'en' ? [{ text: w.en, lang: 'en' }] : [{ text: w.he, lang: 'he' }]);
       if (!sel || sel.side === side) { if (sel) sel.btn.setAttribute('aria-pressed', 'false'); sel = { btn, w, side }; btn.setAttribute('aria-pressed', 'true'); return; }
       if (sel.w.en === w.en) {
         for (const b of [sel.btn, btn]) { b.classList.add('correct'); setTimeout(() => { b.classList.add('gone'); b.disabled = true; }, 250); }
-        matched += 1; seeWord(state, w.en, true);
+        matched += 1; if (!ex.noSrs) seeWord(state, w.en, true);
         if (matched === ex.pairs.length) { setResponse(misses <= 1); submit(); }
       } else {
         misses += 1; btn.classList.add('wrong'); const o = sel.btn; o.classList.add('wrong');
@@ -259,10 +291,11 @@ function drawExercise(main) {
       }
       sel.btn.setAttribute('aria-pressed', 'false'); sel = null;
     }
-    body = [h('div', { class: 'instr' }, 'התאימו את הזוגות'), grid];
+    body = [h('div', { class: 'instr' }, ex.caseMatch ? 'התאימו אות גדולה לקטנה' : 'התאימו את הזוגות'), grid];
   }
 
   function submit() {
+    if (ex.type === 'intro') { s.i += 1; if (s.i >= s.queue.length) finishSession(); else drawExercise(main); return; }
     const res = check(ex, response);
     s.answered += 1;
     if (res.ok) s.correct += 1;
@@ -277,9 +310,13 @@ function drawExercise(main) {
   const ins = main.querySelector('.instr'); if (ins) { ins.tabIndex = -1; ins.focus({ preventScroll: true }); }
 }
 
-function speakBtn(text) { return h('button', { class: 'icon-btn', 'aria-label': 'השמעה', onclick: () => say(text) }, '🔊'); }
-function optionList(options, isEn, onPick) {
-  const wrap = h('div', { class: 'options', role: 'radiogroup', 'aria-label': 'אפשרויות' });
+function speakBtn(text) { return h('button', { class: 'icon-btn', 'aria-label': 'השמעה', onclick: () => say(text, undefined, true) }, '🔊'); }
+// apple -> "a" highlighted at the start
+function mixedWord(word, l) {
+  return word.startsWith(l) ? [h('span', { class: 'hl' }, l), word.slice(l.length)] : word;
+}
+function optionList(options, isEn, onPick, big = false) {
+  const wrap = h('div', { class: big ? 'options letters' : 'options', role: 'radiogroup', 'aria-label': 'אפשרויות' });
   options.forEach((o, i) => wrap.append(h('button', { class: 'chip', role: 'radio', 'aria-checked': 'false', 'data-value': o, lang: isEn ? 'en' : 'he', dir: isEn ? 'ltr' : 'rtl',
     onclick: (e) => { wrap.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-checked', 'false')); e.currentTarget.setAttribute('aria-checked', 'true'); onPick(o); } },
     h('span', { class: 'pill', 'aria-hidden': 'true', style: 'padding:2px 9px' }, i + 1), o)));
@@ -289,25 +326,31 @@ function optionList(options, isEn, onPick) {
 function showFeedback(main, ex, res, next) {
   main.querySelectorAll('button:not(.icon-btn), input').forEach((b) => { b.disabled = true; });
   const l = session.kind === 'lesson' ? findLesson(session.id) : null;
-  const praise = ['מעולה!', 'יפה מאוד!', 'נכון!', 'כל הכבוד!', 'אש! 🔥'];
-  const right = ex.type === 'match' ? null : ex.answer;
+  const right = ex.type === 'match' ? null : (ex.display || ex.answer);
+  const praiseText = PRAISE[Math.floor(Math.random() * PRAISE.length)];
+  const oops = OOPS[Math.floor(Math.random() * OOPS.length)];
   const sheet = h('div', { class: `sheet ${res.ok ? 'ok' : 'bad'}`, role: 'alertdialog', 'aria-live': 'assertive', 'aria-label': res.ok ? 'תשובה נכונה' : 'תשובה שגויה' },
     h('div', { class: 'inner stack' },
-      h('h2', {}, res.ok ? '✅ ' + praise[Math.floor(Math.random() * praise.length)] : '❌ לא בדיוק'),
+      h('h2', {}, res.ok ? '✅ ' + praiseText : '❌ ' + oops),
       res.typo ? h('p', {}, 'שימו לב לכתיב: ', en(right)) : null,
       !res.ok && right ? h('p', {}, 'התשובה הנכונה: ', h('b', { lang: /[a-z]/i.test(right) ? 'en' : 'he' }, right)) : null,
       !res.ok && ex.type === 'match' ? h('p', {}, 'היו כמה טעויות – נחזור על המילים האלה בתרגול.') : null,
       !res.ok && l?.tip ? h('p', { class: 'tip' }, '💡 ', mixed(l.tip)) : null,
       h('button', { class: `btn ${res.ok ? 'success' : 'danger'}`, onclick: () => { sheet.remove(); next(); } }, 'המשך')));
   document.body.append(sheet);
-  if (/[a-z]/i.test(right || '')) say(right);
+  if (state.settings.sound) sfx(res.ok ? 'correct' : 'wrong');
+  const rightParts = right ? [{ text: ex.letter && right.length === 1 ? `the letter ${right}` : right, lang: /[a-z]/i.test(right) ? 'en' : 'he' }] : [];
+  setTimeout(() => say(res.ok ? [{ text: praiseText.replace(/[^\u0590-\u05FF ,!]/g, ''), lang: 'he' }]
+    : [{ text: right ? 'התשובה הנכונה היא' : oops, lang: 'he' }, ...rightParts]), 350);
   sheet.querySelector('.btn').focus();
 }
 
+const PRAISE = ['מעולה!', 'אש! 🔥', 'יפה מאוד!', 'כל הכבוד!', 'נכון!', 'בול!', 'מצוין!', 'תותחים! 💪', 'וואו, יפה!', 'ככה עושים את זה!'];
+const OOPS = ['כמעט!', 'לא נורא, ממשיכים', 'קרוב!', 'לא בדיוק'];
 let lastResult = null;
 function finishSession() {
   const s = session; s.finished = true;
-  const acc = s.answered ? s.correct / s.answered : 1;
+  const acc = s.answered ? s.correct / s.answered : 1; // intro cards are not counted
   if (s.kind === 'lesson') {
     const r = completeLesson(state, s.id, acc);
     lastResult = { ...r, acc, kind: 'lesson', id: s.id };
@@ -332,6 +375,7 @@ function doneScreen() {
       h('div', { class: 'card stat' }, h('b', {}, Math.round(r.acc * 100) + '%'), 'דיוק'),
       h('div', { class: 'card stat', style: 'color:var(--streak)' }, h('b', {}, '🔥' + r.streak), 'ימי רצף')),
     goalHit ? h('p', { class: 'tip' }, '🎯 עמדתם ביעד היומי!') : null,
+    (() => { setTimeout(() => { if (state.settings.sound) sfx('complete'); say([{ text: r.acc >= 0.9 ? 'וואו! כל הכבוד, סיימתם את השיעור!' : 'כל הכבוד, סיימתם את השיעור!', lang: 'he' }]); }, 200); return null; })(),
     h('div', { class: 'footer-action' }, h('button', { class: 'btn', onclick: async () => { await ads.maybeInterstitial(state); persist(); lastResult = null; go(r.kind === 'review' ? 'practice' : 'home'); } }, 'המשך')));
   return main;
 }
@@ -412,6 +456,7 @@ function settings() {
     h('div', { class: 'row' }, h('a', { class: 'icon-btn', href: '#/profile', 'aria-label': 'חזרה' }, '→'), h('h1', { style: 'margin:0' }, 'הגדרות')),
     h('section', { class: 'card' }, h('h2', {}, 'לימוד'),
       sw('🔊 השמעת קול', 'sound'),
+      sw('🇮🇱 הקראה גם בעברית', 'speakHebrew'),
       h('div', { class: 'setting' }, h('span', { class: 'spacer' }, 'לא שומעים כלום?'),
         h('button', { class: 'btn secondary', style: 'width:auto;min-height:44px', onclick: async () => {
           const st = await say('Hello! The sound is working.', state.settings.ttsRate, true);

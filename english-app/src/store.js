@@ -28,7 +28,7 @@ export function fresh() {
       lastActiveDay: null, freezes: 1, freezeWeek: null, onboarded: false, adult: null },
     progress: {},
     words: {},
-    settings: { sound: true, ttsRate: 0.85, theme: 'auto', reducedMotion: false, fontScale: 1 },
+    settings: { sound: true, speakHebrew: true, ttsRate: 0.85, theme: 'auto', reducedMotion: false, fontScale: 1 },
     ads: { lessonsSinceInterstitial: 0, consent: 'unknown' },
   };
 }

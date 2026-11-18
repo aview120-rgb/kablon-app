@@ -10,6 +10,7 @@ test('content is well formed', () => {
   const ids = new Set();
   for (const l of allLessons()) {
     assert.ok(!ids.has(l.id), 'duplicate id ' + l.id); ids.add(l.id);
+    if (l.kind === 'letters') { assert.ok(l.letters.length >= 5, l.id + ' needs 5 letters'); continue; }
     assert.ok(l.words.length >= 6, l.id + ' needs 6 words');
     assert.ok(l.sentences.length >= 2, l.id + ' needs 2 sentences');
     for (const [en, he] of [...l.words, ...l.sentences]) { assert.ok(en && he, l.id); assert.match(he, /[֐-׿]/, 'hebrew in ' + l.id); }
@@ -24,6 +25,7 @@ test('every lesson builds valid, answerable exercises', () => {
       if (ex.type === 'build') assert.ok(check(ex, ex.answer.replace(/[.,!?]/g, '')).ok);
       if (ex.type === 'build') for (const t of normalize(ex.answer).split(' ')) assert.ok(ex.bank.map(normalize).includes(t), `${l.id} bank missing ${t}`);
       if (ex.type === 'match') assert.equal(ex.pairs.length, 4);
+      if (ex.type === 'intro') assert.ok(ex.item.L && ex.item.name && ex.item.word);
     }
   }
 });
@@ -64,4 +66,16 @@ test('lessons unlock in order and give XP', () => {
   const r = completeLesson(s, a.id, 1); assert.equal(r.xp, 20); assert.ok(isUnlocked(s, b.id));
   assert.equal(nextLesson(s).id, b.id);
   assert.equal(completeLesson(s, a.id, 1).xp, 10); // replay gives less
+});
+
+test('alphabet: all 26 letters taught in order, every letter lesson starts with intro cards', () => {
+  const taught = allLessons().filter((l) => l.kind === 'letters' && l.id.startsWith('abc') && l.id !== 'abc6').flatMap((l) => l.letters.map((x) => x.L));
+  assert.equal(taught.join(''), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+  for (const l of allLessons().filter((x) => x.kind === 'letters')) {
+    const ex = buildLesson(l);
+    assert.equal(ex[0].type, 'intro');
+    assert.equal(ex.filter((e) => e.type === 'intro').length, l.letters.length);
+    const sp = ex.find((e) => e.type === 'build');
+    if (sp) assert.ok(check(sp, sp.answer).ok);
+  }
 });

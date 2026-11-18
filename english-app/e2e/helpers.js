@@ -11,7 +11,7 @@ export async function axe(page) {
   const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
   expect(r.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
 }
-export async function onboard(page, { level = 'מתחיל לגמרי', age = '18 ומעלה' } = {}) {
+export async function onboard(page, { level = 'יודע קצת', age = '18 ומעלה' } = {}) {
   await page.goto('/');
   await page.getByRole('button', { name: 'בואו נתחיל' }).click();
   await page.getByRole('radio', { name: /לטייל/ }).click();
@@ -26,6 +26,7 @@ export async function onboard(page, { level = 'מתחיל לגמרי', age = '18
 export async function answer(page, correct = true) {
   await page.locator('.instr').waitFor();
   const ex = await page.evaluate(() => window.__safaCurrent);
+  if (ex.type === 'intro') { await page.getByRole('button', { name: /הבנתי/ }).click(); return ex; }
   if (ex.type === 'choice' || ex.type === 'listen') {
     const val = correct ? ex.answer : ex.options.find((o) => o !== ex.answer);
     await page.locator(`.options [data-value="${val.replace(/"/g, '\\"')}"]`).click();
@@ -43,8 +44,8 @@ export async function answer(page, correct = true) {
 }
 export async function finishLesson(page, { wrongFirst = false } = {}) {
   for (let i = 0; i < 40 && /#\/lesson/.test(page.url()); i++) {
-    await answer(page, !(wrongFirst && i === 0));
-    await page.getByRole('alertdialog').getByRole('button', { name: 'המשך' }).click();
+    const ex = await answer(page, !(wrongFirst && i === 0));
+    if (ex.type !== 'intro') await page.getByRole('alertdialog').getByRole('button', { name: 'המשך' }).click();
   }
   await expect(page).toHaveURL(/#\/done/);
 }

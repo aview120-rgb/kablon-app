@@ -2,7 +2,57 @@
 // Written for this app. Each lesson: words (en/he), sentences (en/he), optional Hebrew tip.
 // Exercises are generated from this data by src/lesson-engine.js.
 
+// Letters: [upper, Hebrew name (how to say it), example word, Hebrew meaning]
+const ABC = [
+  ['A', 'אֵיי', 'apple', 'תפוח'], ['B', 'בִּי', 'ball', 'כדור'], ['C', 'סִי', 'cat', 'חתול'], ['D', 'דִּי', 'dog', 'כלב'],
+  ['E', 'אִי', 'egg', 'ביצה'], ['F', 'אֶף', 'fish', 'דג'], ['G', "גִ'י", 'girl', 'ילדה'], ['H', "אֵייץ'", 'hat', 'כובע'],
+  ['I', 'אַיי', 'ice', 'קרח'], ['J', "גֵ'יי", 'juice', 'מיץ'], ['K', 'קֵיי', 'key', 'מפתח'], ['L', 'אֶל', 'lion', 'אריה'],
+  ['M', 'אֶם', 'milk', 'חלב'], ['N', 'אֶן', 'nose', 'אף'], ['O', 'אוֹ', 'orange', 'תפוז'], ['P', 'פִּי', 'pen', 'עט'],
+  ['Q', 'קְיוּ', 'queen', 'מלכה'], ['R', 'אַר', 'red', 'אדום'], ['S', 'אֶס', 'sun', 'שמש'], ['T', 'טִי', 'tree', 'עץ'],
+  ['U', 'יוּ', 'umbrella', 'מטרייה'], ['V', 'וִי', 'violin', 'כינור'], ['W', 'דַּאבֶּל־יוּ', 'water', 'מים'], ['X', 'אֶקְס', 'box', 'קופסה'],
+  ['Y', 'וַאי', 'yes', 'כן'], ['Z', 'זִי', 'zoo', 'גן חיות'],
+].map(([L, name, word, he]) => ({ L, l: L.toLowerCase(), name, word, he, say: `the letter ${L}` }));
+const pick = (...ls) => ls.map((x) => ABC.find((a) => a.L === x));
+const letterLesson = (id, he, items, tip) => ({ id, he, kind: 'letters', tip, letters: items, words: items.map((i) => [i.word, i.he]), sentences: [] });
+export const ALPHABET = ABC;
+
 export const UNITS = [
+  {
+    id: 'abc', emoji: '🔤', he: 'האותיות באנגלית', en: 'The ABC', skippable: true,
+    lessons: [
+      letterLesson('abc1', 'אותיות A עד E', pick('A', 'B', 'C', 'D', 'E'), 'לכל אות יש שם (A = "אֵיי") וצליל. ב־apple שומעים "אֶ", אבל קוראים לאות "אֵיי".'),
+      letterLesson('abc2', 'אותיות F עד J', pick('F', 'G', 'H', 'I', 'J'), 'G ו־J נשמעות דומה: G = "גִ\'י", J = "גֵ\'יי". כדאי לשים לב לסוף.'),
+      letterLesson('abc3', 'אותיות K עד O', pick('K', 'L', 'M', 'N', 'O'), 'M ו־N מבלבלות: ל־M יש שתי "גבעות" (m), ל־N רק אחת (n).'),
+      letterLesson('abc4', 'אותיות P עד T', pick('P', 'Q', 'R', 'S', 'T'), 'Q כמעט תמיד באה עם u: queen, question.'),
+      letterLesson('abc5', 'אותיות U עד Z', pick('U', 'V', 'W', 'X', 'Y', 'Z'), 'W נקראת "דַּאבֶּל־יוּ" – כלומר "U כפולה". ו־X מופיעה בדרך כלל בסוף מילה: box, fox.'),
+      letterLesson('abc6', 'כל האותיות – חזרה', pick('A', 'E', 'I', 'O', 'U', 'Y'), 'A, E, I, O, U הן "תנועות" (vowels) – הן כמו הניקוד בעברית.'),
+    ],
+  },
+  {
+    id: 'read', emoji: '📗', he: 'קוראים ראשונים', en: 'First reading', skippable: true,
+    lessons: [
+      letterLesson('read1', 'אותיות שמתבלבלים בהן', pick('B', 'D', 'P', 'Q', 'V', 'W'), 'b – קודם קו ואז בטן. d – קודם בטן ואז קו. במילה bed רואים מיטה: b בהתחלה, d בסוף.'),
+      letterLesson('read2', 'צלילים של שתי אותיות', [
+        { L: 'sh', l: 'sh', name: 'שׁ', word: 'ship', he: 'ספינה', say: 'ship' },
+        { L: 'ch', l: 'ch', name: "צ'", word: 'chair', he: 'כיסא', say: 'chair' },
+        { L: 'th', l: 'th', name: 'ת׳ (לשון בין השיניים)', word: 'three', he: 'שלוש', say: 'three' },
+        { L: 'ph', l: 'ph', name: 'פ', word: 'phone', he: 'טלפון', say: 'phone' },
+        { L: 'wh', l: 'wh', name: 'וו', word: 'what', he: 'מה', say: 'what' },
+      ], 'שתי אותיות יחד יכולות ליצור צליל חדש: s + h = "שׁ".'),
+      {
+        id: 'read3', he: 'מילים ראשונות',
+        tip: 'מילים קצרות נקראות אות אחרי אות: c-a-t = cat.',
+        words: [['cat', 'חתול'], ['dog', 'כלב'], ['sun', 'שמש'], ['hat', 'כובע'], ['bed', 'מיטה'], ['cup', 'כוס']],
+        sentences: [['a big cat', 'חתול גדול'], ['the sun is hot', 'השמש חמה'], ['my red hat', 'הכובע האדום שלי']],
+      },
+      {
+        id: 'read4', he: 'עוד מילים קצרות',
+        tip: 'a לפני מילה = "אחד/אחת", כמו a fox = שועל (אחד).',
+        words: [['box', 'קופסה'], ['fox', 'שועל'], ['map', 'מפה'], ['leg', 'רגל'], ['nut', 'אגוז'], ['bag', 'תיק']],
+        sentences: [['a fox in a box', 'שועל בקופסה'], ['I have a map', 'יש לי מפה'], ['my bag is big', 'התיק שלי גדול']],
+      },
+    ],
+  },
   {
     id: 'u1', emoji: '👋', he: 'צעדים ראשונים', en: 'First steps',
     lessons: [

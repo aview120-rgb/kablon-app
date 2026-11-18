@@ -33,3 +33,6 @@ Paid subscription,monetization,skip,yes,skip,user wants free + ads
 Unlimited free lessons (no energy or hearts limit),motivation,must,no,yes,fix for theme 1
 No ads inside lessons + interstitial cap,monetization,must,no,yes,fix for theme 2
 No push notifications in v1,motivation,should,no,yes,fix for theme 3
+"Letters unit (A-Z) with intro cards, step by step",content,must,yes,yes,user request
+Hebrew voice for prompts and encouragement,lesson,should,no,yes,"device voice, skipped quietly if missing"
+Built-in sound effects,lesson,should,yes,yes,"original tones, bundled"

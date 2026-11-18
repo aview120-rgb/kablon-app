@@ -1,5 +1,5 @@
 // Builds exercises from lesson data. Pure functions, easy to unit-test.
-import { allWords } from './data/course.js';
+import { allWords, ALPHABET } from './data/course.js';
 
 export function normalize(s) {
   return String(s).toLowerCase().replace(/[’']/g, "'").replace(/[.,!?;:"״׳()]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -41,7 +41,40 @@ function distractors(lesson, correct, field, n, rnd) {
   return out;
 }
 
+// Letter lessons: learn each letter (intro card), then practise it, step by step.
+export function buildLetterLesson(lesson, rnd = Math.random) {
+  const items = lesson.letters;
+  const pool = lesson.letters[0].L.length > 1 ? items : ALPHABET; // digraphs only mix with each other
+  const others = (it, n, key) => shuffle(pool.filter((x) => x[key] !== it[key] && !items.includes(x)), rnd).slice(0, n);
+  const opts = (it, key) => shuffle([it[key], ...shuffle(items.filter((x) => x !== it), rnd).slice(0, 2).map((x) => x[key]), ...others(it, 1, key).map((x) => x[key])], rnd)
+    .filter((v, i, a) => a.indexOf(v) === i);
+  const intro = (it) => ({ type: 'intro', item: it, noScore: true });
+  const listen = (it) => ({ type: 'listen', prompt: it.say, show: it.L, answer: it.L, options: opts(it, 'L'), letter: true });
+  const byName = (it) => ({ type: 'choice', dir: 'he-en', prompt: `איזו אות היא "${it.name}"?`, answer: it.L, options: opts(it, 'L'), letter: true });
+  const starts = (it) => ({ type: 'choice', dir: 'he-en', prompt: `באיזו אות מתחילה המילה ${it.word} (${it.he})?`, speakEn: it.word, answer: it.L, options: opts(it, 'L'), letter: true });
+  const spell = (it) => {
+    const letters = it.word.split('');
+    const extra = shuffle('abcdefghijklmnoprstuvwy'.split('').filter((c) => !letters.includes(c)), rnd).slice(0, 2);
+    return { type: 'build', prompt: `איך כותבים "${it.he}" באנגלית?`, speakEn: it.word, answer: letters.join(' '), display: it.word, bank: shuffle([...letters, ...extra], rnd), word: it.word };
+  };
+  const ex = [];
+  const seen = [];
+  items.forEach((it, i) => {
+    ex.push(intro(it)); seen.push(it);
+    if (i % 2 === 1) ex.push(rnd() < 0.5 ? listen(seen[seen.length - 1 - Math.floor(rnd() * 2)]) : byName(seen[seen.length - 1 - Math.floor(rnd() * 2)]));
+  });
+  const mix = shuffle(items, rnd);
+  if (items[0].L !== items[0].l) ex.push({ type: 'match', pairs: shuffle(items, rnd).slice(0, 4).map((x) => ({ en: x.L, he: x.l })), noSrs: true, caseMatch: true });
+  else ex.push({ type: 'match', pairs: shuffle(items, rnd).slice(0, 4).map((x) => ({ en: x.L, he: x.name })), noSrs: true });
+  ex.push(byName(mix[0]), listen(mix[1]), starts(mix[2]), starts(mix[3 % mix.length]));
+  const shortWord = mix.find((x) => x.word.length <= 5 && !x.word.includes(' '));
+  if (shortWord) ex.push(spell(shortWord));
+  ex.push({ type: 'type', prompt: `כתבו באנגלית את האות "${mix[4 % mix.length].name}"`, answer: mix[4 % mix.length].l, letter: true });
+  return ex;
+}
+
 export function buildLesson(lesson, rnd = Math.random) {
+  if (lesson.kind === 'letters') return buildLetterLesson(lesson, rnd);
   const words = lesson.words.map(([en, he]) => ({ en, he }));
   const sents = lesson.sentences.map(([en, he]) => ({ en, he }));
   const ws = shuffle(words, rnd);
@@ -92,6 +125,7 @@ export function check(ex, response) {
     case 'build': return { ok: normalize(response) === normalize(ex.answer) };
     case 'type': { const r = closeEnough(response, ex.answer); return { ok: !!r, typo: r === 'typo' }; }
     case 'match': return { ok: response === true };
+    case 'intro': return { ok: true };
     default: return { ok: false };
   }
 }
