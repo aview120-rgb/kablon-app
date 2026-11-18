@@ -143,4 +143,4 @@ input[type='range'] { width: 100%; accent-color: var(--brand); height: 32px; }
 .obj-list .card .grow { flex: 1 1 70%; }
 .obj-list .card .btns { display: flex; gap: 6px; flex-wrap: wrap; flex-basis: 100%; }
 .obj-list .card .grow { flex: 1; min-width: 0; }
-.font-sample { font-size: 1.3rem; }
+.font-sample { font-size: 1.6rem; padding: 8px 4px; min-height: 2.2em; }

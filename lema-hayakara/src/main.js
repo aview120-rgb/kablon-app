@@ -386,12 +386,23 @@ function textDialog(existing) {
       <div class="field"><label>צבע</label><div class="row"><span class="swatch" style="background:${color}"><input type="color" id="tc" value="${color}" /></span><span id="tcn">${esc(colorName(color))}</span></div></div>
     </div>
     <div class="field"><label class="switch">אותיות עבות (בולד)<input type="checkbox" id="tb" ${t.bold ? 'checked' : ''} /></label></div>
-    <div class="field"><label>קשת: <b id="tav">${t.arc}°</b></label><input type="range" id="ta" min="-270" max="270" step="5" value="${t.arc}" /><div class="hint">0 = ישר · ימינה = קשת למעלה · שמאלה = קשת למטה</div></div>
+    <div class="field"><label>קשת: <b id="tav">${t.arc}°</b></label><input type="range" id="ta" dir="ltr" min="-270" max="270" step="5" value="${t.arc}" /><div class="hint">0 = ישר · ימינה = קשת למעלה · שמאלה = קשת למטה</div></div>
     <div class="field"><div class="label">סוג תפר</div><div class="seg" id="tk">
       <button data-k="auto" class="${t.kind === 'auto' ? 'on' : ''}">אוטומטי</button><button data-k="satin" class="${t.kind === 'satin' ? 'on' : ''}">סאטן</button><button data-k="fill" class="${t.kind === 'fill' ? 'on' : ''}">מילוי</button><button data-k="run" class="${t.kind === 'run' ? 'on' : ''}">קו</button>
     </div></div>
     <div class="modal-actions"><button class="btn" id="ok">${existing ? 'עדכון' : 'הוספה'} ✓</button><button class="btn ghost" id="no">ביטול</button></div>`, (el, close) => {
     const sample = () => { $('#fs', el).textContent = $('#tv', el).value.split('\n')[0] || 'לאמא היקרה'; };
+    const loadSampleFont = async () => {
+      const f = FONTS.find((x) => x.id === $('#tf', el).value);
+      if (!f) return;
+      try {
+        const ff = new FontFace('sample-' + f.id, `url(./fonts/${f.file})`);
+        document.fonts.add(await ff.load());
+        $('#fs', el).style.fontFamily = `'sample-${f.id}', Rubik, sans-serif`;
+      } catch { /* keep default */ }
+    };
+    $('#tf', el).onchange = loadSampleFont;
+    loadSampleFont();
     sample();
     $('#tv', el).oninput = sample;
     $('#tc', el).oninput = (e) => { color = e.target.value; e.target.parentElement.style.background = color; $('#tcn', el).textContent = colorName(color); };

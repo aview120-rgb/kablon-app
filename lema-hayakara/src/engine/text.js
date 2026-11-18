@@ -185,11 +185,15 @@ export async function layoutText(text, opts = {}) {
       glyphList.push({ rings: moved, cx: g.x0 + dx + g.adv / 2, line: k });
     }
   });
-  let minY = Infinity, maxY = -Infinity;
-  for (const r of straight) for (const p of r) { minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); }
-  if (minY === Infinity) return { rings: [], widthMm: 0, heightMm: 0 };
-  // letter height (ink of the straight text) equals heightMm
-  const s = o.heightMm / Math.max(1e-6, maxY - minY);
+  // letter height = ink height of the tallest single line equals heightMm
+  let lineH = 0;
+  outLines.forEach((ln) => {
+    let a = Infinity, b = -Infinity;
+    for (const g of ln.glyphs) for (const r of g.rings) for (const p of r) { a = Math.min(a, p.y); b = Math.max(b, p.y); }
+    if (b > a) lineH = Math.max(lineH, b - a);
+  });
+  if (!lineH) return { rings: [], widthMm: 0, heightMm: 0 };
+  const s = o.heightMm / lineH;
   const rings = o.arc ? applyArc(glyphList, maxW, o.arc) : straight;
   let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
   for (const r of rings) for (const p of r) { bx0 = Math.min(bx0, p.x); by0 = Math.min(by0, p.y); bx1 = Math.max(bx1, p.x); by1 = Math.max(by1, p.y); }

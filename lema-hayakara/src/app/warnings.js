@@ -80,7 +80,7 @@ export function analyze({ compiled, objects, settings, hoop, uniqueColors }) {
   if (st.trims > 80) out.push({ level: 'warn', text: `יש הרבה חיתוכי חוט (${st.trims}). הרקמה תהיה איטית. אפשר להוריד את רמת הפרטים או לאחד צבעים.` });
   if (st.stitches > 120000) out.push({ level: 'warn', text: `העיצוב כבד מאוד (${st.stitches.toLocaleString('he-IL')} תפרים). הרקמה תיקח זמן רב והבד עלול להתקשות.` });
   if (hoop.cap) {
-    if (b.h > hoop.h - 2 * HOOP_MARGIN) out.push({ level: 'error', text: 'העיצוב גבוה מדי לכובע.', fix: 'fitHoop', fixLabel: 'התאם לכובע' });
+    if (b.h > hoop.h - 2 * HOOP_MARGIN && !out.some((w) => w.fix === 'fitHoop')) out.push({ level: 'error', text: 'העיצוב גבוה מדי לכובע.', fix: 'fitHoop', fixLabel: 'התאם לכובע' });
     out.push({ level: 'info', text: 'רקמה על כובע: מומלץ שהרקמה תתחיל מהמרכז ותתקדם החוצה, ובצפיפות מעט גבוהה יותר.' });
   }
   if (settings.fabric === 'towel') out.push({ level: 'info', text: 'במגבת מומלץ להניח מעל הבד שכבת "טופינג" מסיסה במים כדי שהתפרים לא ישקעו.' });
