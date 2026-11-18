@@ -427,7 +427,7 @@ function settings() {
       h('p', {}, h('a', { href: 'legal/privacy.html' }, 'מדיניות פרטיות'), ' · ', h('a', { href: 'legal/terms.html' }, 'תנאי שימוש'), ' · ', h('a', { href: 'legal/accessibility.html' }, 'הצהרת נגישות')),
       h('p', { class: 'muted' }, 'יצירת קשר: ', h('a', { href: 'mailto:' + APP.contactEmail }, APP.contactEmail)),
       h('button', { class: 'btn danger', onclick: () => { if (confirm('למחוק את כל ההתקדמות והנתונים מהמכשיר? אי אפשר לבטל.')) { state = store.reset(); session = null; applySettings(); toast('כל הנתונים נמחקו'); go('welcome'); } } }, '🗑️ מחיקת כל הנתונים שלי')),
-    h('p', { class: 'muted center' }, en(`Safa v${APP.version}`)));
+    h('p', { class: 'muted center' }, en(`Safa v${APP.version} · build ${typeof __SAFA_BUILD__ !== 'undefined' ? __SAFA_BUILD__ : 'dev'}`)));
 }
 
 // ---------- boot ----------

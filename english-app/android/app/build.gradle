@@ -20,6 +20,13 @@ android {
         }
     }
     signingConfigs {
+        // Fixed key for TEST builds only (not secret), so each new test APK installs over the previous one.
+        debug {
+            storeFile file('safa-debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
         release {
             // Filled from environment variables (GitHub Actions secrets) — never commit the keystore or passwords.
             def ks = System.getenv('ANDROID_KEYSTORE_PATH')
@@ -32,6 +39,9 @@ android {
         }
     }
     buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
         release {
             if (System.getenv('ANDROID_KEYSTORE_PATH')) signingConfig signingConfigs.release
             minifyEnabled false

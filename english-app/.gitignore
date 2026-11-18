@@ -13,3 +13,6 @@ android/app/src/main/assets/public/
 android/capacitor-cordova-android-plugins/build/
 test-results/
 playwright-report/
+
+# fixed debug key for test builds (intentionally committed, not secret)
+!android/app/safa-debug.keystore

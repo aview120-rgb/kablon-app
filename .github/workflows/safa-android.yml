@@ -38,6 +38,8 @@ jobs:
       - name: Unit tests
         run: npm test
       - name: Build web app and copy into Android project
+        env:
+          SAFA_BUILD: ${{ github.run_number }}
         run: npm run android:sync
       - name: Prepare signing key (from repository secrets)
         env:
