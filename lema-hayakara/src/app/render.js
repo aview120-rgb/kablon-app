@@ -115,6 +115,22 @@ export class Preview {
       if (n > 0) lastPos = [b.xy[(n - 1) * 2] * s, b.xy[(n - 1) * 2 + 1] * s, b.color];
     });
     ctx.globalAlpha = 1;
+    if (this.selection && this.selection.rings) {
+      const off = this.selection.offset || { x: 0, y: 0 };
+      ctx.save();
+      ctx.setLineDash([6, 4]);
+      ctx.lineWidth = 2;
+      for (const [col, w] of [['#ffffff', 4], ['#e0115f', 2]]) {
+        ctx.strokeStyle = col; ctx.lineWidth = w;
+        ctx.beginPath();
+        for (const r of this.selection.rings) {
+          r.forEach((p, i) => { const x = (p.x + off.x) * s, y = (p.y + off.y) * s; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+          ctx.closePath();
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
     if (this.limit < this.total && lastPos) {
       // needle marker
       ctx.beginPath();
@@ -125,20 +141,44 @@ export class Preview {
     }
   }
 
+  toMm(clientX, clientY) {
+    const r = this.c.getBoundingClientRect();
+    return { x: (clientX - r.left - r.width / 2 - this.view.ox) / this.view.scale, y: (clientY - r.top - r.height / 2 - this.view.oy) / this.view.scale };
+  }
+
   _setupGestures() {
     const c = this.c;
     const pts = new Map();
     let last = null;
-    c.addEventListener('pointerdown', (e) => { c.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); last = null; });
+    let down = null;      // for tap detection
+    let dragging = false; // moving a selected object
+    c.addEventListener('pointerdown', (e) => {
+      c.setPointerCapture(e.pointerId);
+      pts.set(e.pointerId, [e.clientX, e.clientY]);
+      last = null;
+      dragging = false;
+      if (pts.size === 1) {
+        down = { x: e.clientX, y: e.clientY, t: Date.now() };
+        const mm = this.toMm(e.clientX, e.clientY);
+        if (this.onDragStart && this.onDragStart(mm)) { dragging = true; down.mm = mm; }
+      } else down = null;
+    });
     c.addEventListener('pointermove', (e) => {
       if (!pts.has(e.pointerId)) return;
       pts.set(e.pointerId, [e.clientX, e.clientY]);
       const arr = [...pts.values()];
       if (arr.length === 1) {
         const [x, y] = arr[0];
+        if (dragging && down) {
+          const mm = this.toMm(x, y);
+          this.onDrag?.(mm.x - down.mm.x, mm.y - down.mm.y);
+          this.request();
+          return;
+        }
         if (last && last.n === 1) { this.view.ox += x - last.x; this.view.oy += y - last.y; this.request(); }
         last = { n: 1, x, y };
       } else if (arr.length >= 2) {
+        dragging = false;
         const [a, b] = arr;
         const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
         const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
@@ -150,7 +190,18 @@ export class Preview {
         last = { n: 2, d, x: mx, y: my };
       }
     });
-    const up = (e) => { pts.delete(e.pointerId); last = null; };
+    const up = (e) => {
+      if (down && pts.size === 1 && e.type === 'pointerup') {
+        const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+        if (dragging) {
+          const mm = this.toMm(e.clientX, e.clientY);
+          if (moved > 4) this.onDragEnd?.(mm.x - down.mm.x, mm.y - down.mm.y);
+          else { this.onDragEnd?.(0, 0); this.onTap?.(this.toMm(e.clientX, e.clientY)); }
+        } else if (moved < 8 && Date.now() - down.t < 500) this.onTap?.(this.toMm(e.clientX, e.clientY));
+      }
+      pts.delete(e.pointerId); last = null;
+      if (!pts.size) { down = null; dragging = false; }
+    };
     c.addEventListener('pointerup', up);
     c.addEventListener('pointercancel', up);
     c.addEventListener('wheel', (e) => { e.preventDefault(); this._zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.15 : 1 / 1.15); }, { passive: false });

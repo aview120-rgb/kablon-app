@@ -5,6 +5,7 @@ import { setFontLoader, textToShapes } from './engine/text.js';
 import { removeBackground } from './engine/ai.js';
 import { readDST, readEXP } from './engine/formats.js';
 import { patternToObjects } from './engine/design.js';
+import { makeBackground } from './engine/background.js';
 
 const BASE = new URL('./', self.location.href.replace(/assets\/[^/]*$/, '')).href;
 const ROOT = (() => {
@@ -59,6 +60,9 @@ const handlers = {
       onProgress: (msg) => self.postMessage({ progress: msg }),
     });
     return { result: res, transfer: [res.data.buffer] };
+  },
+  async background({ objects, spec }) {
+    return { result: makeBackground(objects, spec) };
   },
   async importFile({ bytes, ext, palette }) {
     const pat = ext === 'exp' ? readEXP(bytes) : readDST(bytes);

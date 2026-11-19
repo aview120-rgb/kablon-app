@@ -11,6 +11,7 @@ import { saveProject, getProject, listProjects, deleteProject } from './app/stor
 import { transformObjects, mergeSimilarColors, designBounds, FABRICS, toPattern, newId } from './engine/design.js';
 import { FORMATS } from './engine/formats.js';
 import { FONTS } from './engine/text.js';
+import { pointInShape } from './engine/geom.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -25,6 +26,7 @@ let currentTab = 'size';
 let compileTimer = 0;
 let compileSeq = 0;
 let saveTimer = 0;
+let undoOwner = null;
 const preview = new Preview($('#canvas'));
 
 function newProject(name = 'עיצוב חדש') {
@@ -116,6 +118,8 @@ async function runCompile() {
     renderWarnings();
     renderInfo();
     if (['colors', 'size'].includes(currentTab)) renderPanel();
+    if (undoOwner !== P) { undoOwner = P; resetUndo(); }
+    trackUndo();
     scheduleSave();
   } catch (e) {
     console.error(e);
@@ -247,6 +251,7 @@ async function runAiBackground(kind) {
     c.width = x1 - x0 + 1; c.height = y1 - y0 + 1;
     c.getContext('2d').drawImage(full, x0, y0, c.width, c.height, 0, 0, c.width, c.height);
     P.source.aiImage = c.toDataURL('image/png');
+    P.source.aiCrop = { x: x0, y: y0 };
     P.source.opts.ai = kind;
     toast('הרקע הוסר ✓');
   } catch (e) {
@@ -627,6 +632,7 @@ function panelImage(el) {
     <div class="field"><div class="label">הסרת רקע בבינה מלאכותית</div><div class="row">
       <button class="btn secondary" id="aiq">✨ איכותי</button><button class="btn secondary" id="aif">⚡ מהיר</button>${s.aiImage ? '<button class="btn ghost" id="aio">↺ ביטול</button>' : ''}</div>
       <div class="hint">${s.aiImage ? 'הרקע הוסר ✓' : 'מזהה את האובייקט הראשי ומוריד את הרקע – בלי אינטרנט'}</div></div>
+    <button class="btn secondary wide" id="cleanup" style="margin-bottom:10px">✏️ מחק / החזר חלקים בתמונה</button>
     <button class="btn wide" id="apply">🔄 המר מחדש</button>
     <div class="hint" style="margin-top:8px">המרה מחדש מחליפה את חלקי התמונה (הטקסטים נשארים). שינויי צבע ידניים יתאפסו.</div>`;
   $$('#md button', el).forEach((b) => (b.onclick = () => { s.mode = b.dataset.m; if (s.mode === 'photo' && o.colors < 6) o.colors = 8; renderPanel(); }));
@@ -641,8 +647,9 @@ function panelImage(el) {
   if ($('#inv', el)) $('#inv', el).onchange = (e) => (o.invert = e.target.checked);
   $('#aiq', el).onclick = async () => { await runAiBackground('quality'); await redigitize(); };
   $('#aif', el).onclick = async () => { await runAiBackground('fast'); await redigitize(); };
-  if ($('#aio', el)) $('#aio', el).onclick = async () => { s.aiImage = null; o.ai = null; await redigitize(); };
+  if ($('#aio', el)) $('#aio', el).onclick = async () => { s.aiImage = null; s.aiCrop = null; o.ai = null; await redigitize(); };
   $('#apply', el).onclick = () => redigitize();
+  $('#cleanup', el).onclick = () => imageCleanupDialog();
 }
 
 function panelText(el) {
@@ -652,7 +659,9 @@ function panelText(el) {
     <div class="obj-list" style="margin-top:12px">
     ${texts.map((o) => `<div class="card"><span class="needle-badge" style="background:${o.color}"></span><div class="grow"><b>${esc(o.text.value.replace(/\n/g, ' / '))}</b><br/><small>${esc((FONTS.find((f) => f.id === o.text.font) || {}).label || '')} · ${(o.text.heightMm / 10).toFixed(1)} ס״מ</small></div>
       <div class="btns"><button class="mini" data-edit="${o.id}">✏️ עריכה</button><button class="mini" data-mvu="${o.id}" aria-label="למעלה">⬆</button><button class="mini" data-mvd="${o.id}" aria-label="למטה">⬇</button><button class="mini" data-mvl="${o.id}" aria-label="שמאלה">⬅</button><button class="mini" data-mvr="${o.id}" aria-label="ימינה">➡</button><button class="mini" data-deltext="${o.id}">🗑️</button></div></div>`).join('') || '<div class="empty">עוד אין טקסטים בעיצוב.</div>'}
-    </div><div class="hint">החצים מזיזים את הטקסט ב-2 מ״מ בכל לחיצה.</div>`;
+    </div><div class="hint">החצים מזיזים את הטקסט ב-2 מ״מ בכל לחיצה.</div>
+    ${bgPanelHtml()}`;
+  bindBgPanel(el);
   $('#addText', el).onclick = () => textDialog();
   const find = (id) => P.objects.find((o) => o.id === id);
   $$('[data-edit]', el).forEach((b) => (b.onclick = () => textDialog(find(b.dataset.edit))));
@@ -668,6 +677,54 @@ function panelText(el) {
   $$('[data-mvl]', el).forEach((b) => (b.onclick = () => mv(b.dataset.mvl, -2, 0)));
   $$('[data-mvr]', el).forEach((b) => (b.onclick = () => mv(b.dataset.mvr, 2, 0)));
   $$('[data-deltext]', el).forEach((b) => (b.onclick = async () => { if (!(await confirmBox('למחוק את הטקסט?', 'מחיקה'))) return; P.objects = P.objects.filter((o) => o.id !== b.dataset.deltext); renderPanel(); scheduleCompile(0); }));
+}
+
+// ---------- stitched background / frame behind the design ----------
+const BG_SHAPES = [['none', 'בלי'], ['rect', 'מלבן'], ['rounded', 'מעוגל'], ['pill', 'קפסולה'], ['ellipse', 'אליפסה'], ['circle', 'עיגול']];
+function bgSpec() { return P.background || { shape: 'none', color: '#e8d9b5', margin: 6, border: true, borderColor: '#1f4e79', borderWidth: 3.5 }; }
+function bgPanelHtml() {
+  const b = bgSpec();
+  return `<div class="card" style="margin-top:14px"><b>רקע ומסגרת רקומים מאחורי העיצוב</b>
+    <div class="hint">כמו תיק טלית: רקע מלא, האותיות רקומות עליו, ומסגרת סאטן מסביב.</div>
+    <div class="seg" id="bgShape" style="margin-top:8px;flex-wrap:wrap">${BG_SHAPES.map(([k, l]) => `<button data-bs="${k}" class="${b.shape === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+    <div class="grid2" style="margin-top:10px">
+      <div class="field"><label>צבע הרקע</label><span class="swatch" style="background:${b.color}"><input type="color" id="bgCol" value="${b.color}" /></span></div>
+      <div class="field"><label>מרווח מהטקסט (מ״מ)</label><input type="number" id="bgMargin" min="1" max="40" step="1" value="${b.margin}" /></div>
+    </div>
+    <div class="field"><label class="switch">מסגרת סאטן מסביב<input type="checkbox" id="bgBorder" ${b.border ? 'checked' : ''} /></label></div>
+    <div class="grid2">
+      <div class="field"><label>צבע המסגרת</label><span class="swatch" style="background:${b.borderColor}"><input type="color" id="bgBCol" value="${b.borderColor}" /></span></div>
+      <div class="field"><label>עובי המסגרת (מ״מ)</label><input type="number" id="bgBW" min="1.5" max="8" step="0.5" value="${b.borderWidth}" /></div>
+    </div>
+    <button class="btn wide" id="bgApply">✓ החל רקע ומסגרת</button></div>`;
+}
+function bindBgPanel(el) {
+  const b = { ...bgSpec() };
+  $$('#bgShape button', el).forEach((x) => (x.onclick = () => { b.shape = x.dataset.bs; $$('#bgShape button', el).forEach((y) => y.classList.toggle('on', y === x)); }));
+  $('#bgCol', el).oninput = (e) => { b.color = e.target.value; e.target.parentElement.style.background = b.color; };
+  $('#bgBCol', el).oninput = (e) => { b.borderColor = e.target.value; e.target.parentElement.style.background = b.borderColor; };
+  $('#bgApply', el).onclick = async () => {
+    b.margin = Math.max(1, +$('#bgMargin', el).value || 6);
+    b.border = $('#bgBorder', el).checked;
+    b.borderWidth = Math.max(1.5, +$('#bgBW', el).value || 3.5);
+    pushUndo();
+    P.background = b;
+    await applyBackground();
+    toast(b.shape === 'none' ? 'הרקע הוסר' : 'הרקע נוסף ✓');
+  };
+}
+async function applyBackground() {
+  P.objects = P.objects.filter((o) => !o.isBackground);
+  const b = P.background;
+  if (!b || b.shape === 'none' || !P.objects.length) { renderPanel(); scheduleCompile(0); return; }
+  busy(true, 'יוצר רקע ומסגרת…');
+  try {
+    const bg = await call('background', { objects: P.objects, spec: b });
+    P.objects = [...bg, ...P.objects];
+  } catch (e) { toast('שגיאה ביצירת הרקע: ' + e.message, 4000); }
+  finally { busy(false); }
+  renderPanel();
+  await runCompile();
 }
 
 function panelView(el) {
@@ -820,7 +877,7 @@ $$('[data-start]').forEach((b) => (b.onclick = () => {
   else if (k === 'text') startText();
   else if (k === 'open') startOpen();
 }));
-$('#btnBack').onclick = async () => { stop(); $('#simBar').hidden = true; preview.limit = Infinity; clearTimeout(saveTimer); if (P && compiled) { P.thumb = thumbnail(compiled, 220, '#f7f5f0').toDataURL('image/png'); P.updated = Date.now(); try { await saveProject(JSON.parse(JSON.stringify(P))); } catch { /* ignore */ } } show('home'); renderRecent(); };
+$('#btnBack').onclick = async () => { if (selectMode) setSelectMode(false); stop(); $('#simBar').hidden = true; preview.limit = Infinity; clearTimeout(saveTimer); if (P && compiled) { P.thumb = thumbnail(compiled, 220, '#f7f5f0').toDataURL('image/png'); P.updated = Date.now(); try { await saveProject(JSON.parse(JSON.stringify(P))); } catch { /* ignore */ } } show('home'); renderRecent(); };
 $('#btnExport').onclick = exportDialog;
 $('#projName').onchange = (e) => { if (P) { P.name = e.target.value.trim() || 'עיצוב'; scheduleSave(); } };
 $('#zoomIn').onclick = () => preview.zoom(1.3);
@@ -882,6 +939,264 @@ if (platform === 'android') {
   }));
 }
 
+// ---------------- undo / redo ----------------
+const undoStack = [];
+const redoStack = [];
+let lastState = null;
+let restoring = false;
+function snapshot() { return JSON.stringify({ objects: P.objects, background: P.background || null, settings: P.settings, needles: P.needles }); }
+function trackUndo() {
+  if (!P) return;
+  const cur = snapshot();
+  if (restoring) { lastState = cur; restoring = false; updateUndoButtons(); return; }
+  if (lastState !== null && cur !== lastState) {
+    undoStack.push(lastState);
+    if (undoStack.length > 40) undoStack.shift();
+    redoStack.length = 0;
+  }
+  lastState = cur;
+  updateUndoButtons();
+}
+function resetUndo() { undoStack.length = 0; redoStack.length = 0; lastState = null; updateUndoButtons(); }
+function pushUndo() { /* snapshots are taken automatically on every change */ }
+function restoreState(str) {
+  const st = JSON.parse(str);
+  P.objects = st.objects; P.background = st.background; P.settings = st.settings; P.needles = st.needles;
+  restoring = true;
+  clearSelection();
+  renderPanel();
+  scheduleCompile(0);
+}
+function undo() { if (!undoStack.length) return; redoStack.push(snapshot()); restoreState(undoStack.pop()); }
+function redo() { if (!redoStack.length) return; undoStack.push(snapshot()); restoreState(redoStack.pop()); }
+function updateUndoButtons() {
+  const u = $('#btnUndo'), r = $('#btnRedo');
+  if (u) u.disabled = !undoStack.length;
+  if (r) r.disabled = !redoStack.length;
+}
+$('#btnUndo').onclick = undo;
+$('#btnRedo').onclick = redo;
+window.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey) || !$('#editor').classList.contains('active')) return;
+  if (e.target.matches('input, textarea')) return;
+  if (e.key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+  if (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
+  if (e.key === 'Delete' && selected) { e.preventDefault(); deleteSelectedPart(); }
+});
+
+// ---------------- select, delete, recolour and move parts ----------------
+let selectMode = false;
+let selected = null; // { obj, shapeIndex }
+function setSelectMode(on) {
+  selectMode = on;
+  $('#btnSelect').classList.toggle('on', on);
+  if (!on) clearSelection();
+  else toast('לחצו על חלק בעיצוב כדי לבחור אותו. אחר כך אפשר למחוק, לשנות צבע או לגרור אותו.', 4500);
+}
+$('#btnSelect').onclick = () => setSelectMode(!selectMode);
+
+function clearSelection() { selected = null; preview.selection = null; $('#selBar').hidden = true; preview.request(); }
+
+function objRings(o) {
+  if (o.shapes) return o.shapes.map((s) => s.outer);
+  if (o.points) {
+    const b = designBounds([o]);
+    return [[{ x: b.minX, y: b.minY }, { x: b.maxX, y: b.minY }, { x: b.maxX, y: b.maxY }, { x: b.minX, y: b.maxY }]];
+  }
+  return [];
+}
+
+function hitTest(mm) {
+  for (let k = P.objects.length - 1; k >= 0; k--) {
+    const o = P.objects[k];
+    if (o.visible === false) continue;
+    if (o.shapes) {
+      for (let i = 0; i < o.shapes.length; i++) if (pointInShape(mm.x, mm.y, o.shapes[i])) return { obj: o, shapeIndex: i };
+    } else if (o.points) {
+      const tol = 1.5;
+      for (const p of o.points) if (Math.abs(p.x - mm.x) < tol && Math.abs(p.y - mm.y) < tol) return { obj: o, shapeIndex: -1 };
+    }
+  }
+  return null;
+}
+
+function showSelection() {
+  if (!selected) return clearSelection();
+  const o = selected.obj;
+  const rings = selected.shapeIndex >= 0 ? [o.shapes[selected.shapeIndex].outer, ...o.shapes[selected.shapeIndex].holes] : objRings(o);
+  preview.selection = { rings, offset: { x: 0, y: 0 } };
+  const bar = $('#selBar');
+  const part = selected.shapeIndex >= 0 && o.shapes.length > 1;
+  bar.innerHTML = `
+    <b>${esc(o.name || 'חלק')}</b>
+    ${part ? '<button data-sa="delPart">🗑️ מחק את החלק</button>' : ''}
+    <button data-sa="delObj">🗑️ מחק ${o.type === 'text' ? 'את כל הטקסט' : part ? 'את כל החלקים בצבע הזה' : ''}</button>
+    ${selected.shapeIndex >= 0 ? `<label class="selcolor">🎨 צבע לחלק<input type="color" value="${o.color}" data-sa="color" /></label>` : ''}
+    <button data-sa="close">✕</button>
+    <small>אפשר לגרור באצבע כדי להזיז</small>`;
+  bar.hidden = false;
+  $$('[data-sa]', bar).forEach((b) => {
+    if (b.dataset.sa === 'color') { b.onchange = () => recolorSelectedPart(b.value); return; }
+    b.onclick = () => ({ delPart: deleteSelectedPart, delObj: deleteSelectedObject, close: clearSelection })[b.dataset.sa]();
+  });
+  preview.request();
+}
+
+function deleteSelectedPart() {
+  if (!selected) return;
+  const o = selected.obj;
+  if (selected.shapeIndex >= 0 && o.shapes.length > 1) {
+    o.shapes = o.shapes.filter((_, i) => i !== selected.shapeIndex);
+    if (o.type === 'text') o.type = 'region'; // edited letters are no longer re-typeset
+  } else P.objects = P.objects.filter((x) => x !== o);
+  clearSelection();
+  toast('נמחק ✓ (אפשר לבטל עם ↶)');
+  renderPanel();
+  scheduleCompile(0);
+}
+function deleteSelectedObject() {
+  if (!selected) return;
+  P.objects = P.objects.filter((x) => x !== selected.obj);
+  clearSelection();
+  toast('נמחק ✓ (אפשר לבטל עם ↶)');
+  renderPanel();
+  scheduleCompile(0);
+}
+function recolorSelectedPart(color) {
+  if (!selected || selected.shapeIndex < 0) return;
+  const o = selected.obj;
+  const c = color.toLowerCase();
+  if (o.shapes.length === 1) { o.color = c; }
+  else {
+    const [sh] = o.shapes.splice(selected.shapeIndex, 1);
+    const n = { ...o, id: newId(), name: (o.name || 'חלק') + ' – צבע חדש', color: c, shapes: [sh], type: o.type === 'text' ? 'region' : o.type };
+    delete n.text;
+    const idx = P.objects.indexOf(o);
+    P.objects.splice(idx + 1, 0, n);
+    selected = { obj: n, shapeIndex: 0 };
+  }
+  showSelection();
+  renderPanel();
+  scheduleCompile(0);
+}
+
+function translateObject(o, dx, dy) {
+  if (o.shapes) o.shapes = o.shapes.map((s) => ({ outer: s.outer.map((p) => ({ x: p.x + dx, y: p.y + dy })), holes: s.holes.map((h) => h.map((p) => ({ x: p.x + dx, y: p.y + dy }))), width: s.width }));
+  if (o.points) o.points = o.points.map((p) => ({ ...p, x: p.x + dx, y: p.y + dy }));
+  if (o.text && o.text.pos) o.text.pos = { x: o.text.pos.x + dx, y: o.text.pos.y + dy };
+}
+
+preview.onTap = (mm) => {
+  if (!selectMode || !P) return;
+  const h = hitTest(mm);
+  if (!h) { clearSelection(); return; }
+  selected = h;
+  showSelection();
+};
+preview.onDragStart = (mm) => {
+  if (!selectMode || !selected) return false;
+  const h = hitTest(mm);
+  if (!h || h.obj !== selected.obj) return false;
+  preview.selection = { rings: objRings(selected.obj), offset: { x: 0, y: 0 } };
+  return true;
+};
+preview.onDrag = (dx, dy) => { if (preview.selection) preview.selection.offset = { x: dx, y: dy }; };
+preview.onDragEnd = (dx, dy) => {
+  if (!selected) return;
+  if (Math.hypot(dx, dy) > 0.05) {
+    // whole object moves (all letters of a text, all parts of a colour)
+    translateObject(selected.obj, dx, dy);
+    scheduleCompile(0);
+  }
+  showSelection();
+};
+
+// ---------------- image cleanup: erase / restore / magic eraser ----------------
+async function imageCleanupDialog() {
+  if (!P.source) return;
+  const base = await loadImageEl(P.source.aiImage || P.source.preview);
+  const orig = await loadImageEl(P.source.preview);
+  const crop = P.source.aiCrop || { x: 0, y: 0 };
+  const W = base.naturalWidth, H = base.naturalHeight;
+  const work = document.createElement('canvas'); work.width = W; work.height = H;
+  const wctx = work.getContext('2d', { willReadFrequently: true });
+  wctx.drawImage(base, 0, 0);
+  const origC = document.createElement('canvas'); origC.width = W; origC.height = H;
+  origC.getContext('2d').drawImage(orig, -crop.x, -crop.y);
+  const history = [];
+  let tool = 'erase', size = Math.round(Math.max(W, H) / 30);
+  modal(`<h2>ניקוי התמונה</h2>
+    <div class="hint">מסמנים באצבע מה למחוק. "החזר" מחזיר חלקים שנמחקו. "מחק אזור" מוחק בלחיצה אחת אזור שלם באותו צבע.</div>
+    <div class="seg" id="ctTool" style="margin:8px 0">
+      <button data-t="erase" class="on">🧽 מחק</button><button data-t="restore">↩ החזר</button><button data-t="magic">✨ מחק אזור</button>
+    </div>
+    <div class="field"><label>גודל המברשת / רגישות</label><input type="range" id="ctSize" min="2" max="${Math.round(Math.max(W, H) / 6)}" value="${size}" /></div>
+    <div style="position:relative;touch-action:none"><canvas id="ctCanvas" class="preview-img" style="max-height:52vh;width:100%;touch-action:none"></canvas></div>
+    <div class="modal-actions"><button class="btn secondary" id="ctUndo">↶ בטל</button><button class="btn" id="ctSave">✓ שמור והמר</button><button class="btn ghost" id="ctClose">ביטול</button></div>`, (el, close) => {
+    const cv = $('#ctCanvas', el);
+    cv.width = W; cv.height = H;
+    const vctx = cv.getContext('2d');
+    const redraw = () => { vctx.clearRect(0, 0, W, H); vctx.drawImage(work, 0, 0); };
+    redraw();
+    $$('#ctTool button', el).forEach((b) => (b.onclick = () => { tool = b.dataset.t; $$('#ctTool button', el).forEach((x) => x.classList.toggle('on', x === b)); }));
+    $('#ctSize', el).oninput = (e) => (size = +e.target.value);
+    const toImg = (e) => { const r = cv.getBoundingClientRect(); const k = Math.min(r.width / W, r.height / H); const ox = (r.width - W * k) / 2, oy = (r.height - H * k) / 2; return { x: (e.clientX - r.left - ox) / k, y: (e.clientY - r.top - oy) / k }; };
+    const save = () => { history.push(wctx.getImageData(0, 0, W, H)); if (history.length > 20) history.shift(); };
+    const dab = (p, q) => {
+      const steps = q ? Math.max(1, Math.ceil(Math.hypot(p.x - q.x, p.y - q.y) / (size / 4))) : 1;
+      for (let i = 0; i <= steps; i++) {
+        const x = q ? q.x + ((p.x - q.x) * i) / steps : p.x, y = q ? q.y + ((p.y - q.y) * i) / steps : p.y;
+        wctx.save();
+        wctx.beginPath(); wctx.arc(x, y, size / 2, 0, Math.PI * 2); wctx.clip();
+        if (tool === 'erase') wctx.clearRect(x - size, y - size, size * 2, size * 2);
+        else { wctx.clearRect(x - size, y - size, size * 2, size * 2); wctx.drawImage(origC, 0, 0); }
+        wctx.restore();
+      }
+      redraw();
+    };
+    const magic = (p) => {
+      const img = wctx.getImageData(0, 0, W, H), d = img.data;
+      const sx = Math.round(p.x), sy = Math.round(p.y);
+      if (sx < 0 || sy < 0 || sx >= W || sy >= H) return;
+      const i0 = (sy * W + sx) * 4;
+      if (d[i0 + 3] === 0) return;
+      const tol = Math.min(120, 12 + size * 0.6);
+      const r0 = d[i0], g0 = d[i0 + 1], b0 = d[i0 + 2];
+      const seen = new Uint8Array(W * H);
+      const stack = [sy * W + sx];
+      seen[sy * W + sx] = 1;
+      while (stack.length) {
+        const q = stack.pop();
+        const o = q * 4;
+        d[o + 3] = 0;
+        const x = q % W, y = (q - x) / W;
+        for (const n of [x > 0 ? q - 1 : -1, x < W - 1 ? q + 1 : -1, y > 0 ? q - W : -1, y < H - 1 ? q + W : -1]) {
+          if (n < 0 || seen[n]) continue;
+          seen[n] = 1;
+          const k = n * 4;
+          if (d[k + 3] === 0) continue;
+          if (Math.abs(d[k] - r0) + Math.abs(d[k + 1] - g0) + Math.abs(d[k + 2] - b0) <= tol) stack.push(n);
+        }
+      }
+      wctx.putImageData(img, 0, 0);
+      redraw();
+    };
+    let lastP = null, drawing = false;
+    cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); save(); const p = toImg(e); if (tool === 'magic') { magic(p); return; } drawing = true; lastP = p; dab(p); });
+    cv.addEventListener('pointermove', (e) => { if (!drawing) return; const p = toImg(e); dab(p, lastP); lastP = p; });
+    cv.addEventListener('pointerup', () => { drawing = false; lastP = null; });
+    $('#ctUndo', el).onclick = () => { const h = history.pop(); if (h) { wctx.putImageData(h, 0, 0); redraw(); } };
+    $('#ctClose', el).onclick = close;
+    $('#ctSave', el).onclick = async () => {
+      P.source.aiImage = work.toDataURL('image/png');
+      P.source.aiCrop = crop;
+      close();
+      await redigitize();
+    };
+  });
+}
+function loadImageEl(url) { return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = url; }); }
+
 renderRecent();
 // expose for automated tests
-window.__lema = { get project() { return P; }, get compiled() { return compiled; }, get warnings() { return warnings; } };
+window.__lema = { get preview() { return preview; }, get project() { return P; }, get compiled() { return compiled; }, get warnings() { return warnings; } };
