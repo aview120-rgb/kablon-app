@@ -116,6 +116,10 @@ jobs:
           retention-days: 14
 
   windows:
+    # Windows builds are paused while Android gets the new changes first.
+    # Pending Windows work is listed in lema-hayakara/PC-TODO.md – to resume, delete the `if:` line below
+    # and add `windows` back to the release job's `needs`.
+    if: false
     needs: test
     runs-on: windows-latest
     defaults:
@@ -159,7 +163,7 @@ jobs:
             lema-hayakara/release/latest.yml
 
   release:
-    needs: [android, windows]
+    needs: [android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -176,7 +180,7 @@ jobs:
           body: |
             ## הורדה
             - **אנדרואיד:** הורידו את קובץ ה-`.apk`, פתחו אותו ואשרו "התקנה ממקור לא ידוע" (פעם אחת).
-            - **Windows:** הורידו את `LeImaHayakara-Setup-….exe` ולחצו עליו פעמיים. אם מופיעה אזהרה כחולה – "מידע נוסף" ← "הפעל בכל זאת".
+            - **Windows:** הגרסה הזאת יצאה לאנדרואיד בלבד. את גרסת המחשב האחרונה מורידים מגרסה 1.0.6.
 
             עדכון מותקן מעל הגרסה הקיימת – לא צריך למחוק, והעבודות השמורות נשארות.
           files: files/*

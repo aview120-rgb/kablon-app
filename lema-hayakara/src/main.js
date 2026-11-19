@@ -114,6 +114,7 @@ async function runCompile() {
     compiled = res;
     preview.fabric = P.view.fabric;
     preview.realistic = P.view.realistic;
+    if (preview.selection) preview.selection.fill = null; // stitches are up to date again
     preview.setData(compiled, hoop());
     warnings = analyze({ compiled, objects: P.objects, settings: P.settings, hoop: hoop(), uniqueColors: uniqueColors().length });
     renderWarnings();
@@ -359,10 +360,59 @@ function startText() {
 }
 
 // ---------------- text ----------------
+function textOpts(t) {
+  return {
+    font: t.font, heightMm: t.heightMm, bold: t.bold, weight: t.weight, lineSpacing: t.lineSpacing || 1.15, letterSpacing: t.letterSpacing || 0,
+    shape: t.shape || (t.arc ? 'arc' : 'straight'), arc: t.arc || 0, slant: t.slant || 0,
+    circleDiameter: t.circleDiameter || 80, circleRotate: t.circleRotate || 0, circleBottom: !!t.circleBottom,
+    waveHeight: t.waveHeight ?? 40, waveCount: t.waveCount ?? 1, wavePhase: t.wavePhase || 0,
+  };
+}
+
+// stitch direction choices (angle of the stitches, degrees; y points down)
+const DIRS = [['auto', 'אוטומטי', null], ['h', '↔ שוכב', 0], ['v', '↕ עומד (מלמעלה למטה)', 90], ['d1', '⟋ אלכסון', 135], ['d2', '⟍ אלכסון', 45]];
+function dirKey(angle) {
+  if (angle == null) return 'auto';
+  const deg = (((angle * 180) / Math.PI) % 180 + 180) % 180;
+  const d = DIRS.find((x) => x[2] != null && Math.abs(x[2] - deg) < 1);
+  return d ? d[0] : 'custom';
+}
+function dirAngle(key, customDeg) {
+  if (key === 'custom') return ((+customDeg || 0) * Math.PI) / 180;
+  const d = DIRS.find((x) => x[0] === key);
+  return d && d[2] != null ? (d[2] * Math.PI) / 180 : null;
+}
+
+// a slider with − / + buttons for exact steps
+function stepRange(id, label, min, max, step, value, unit = '') {
+  return `<div class="field"><label>${label}: <b id="${id}v" data-unit="${unit}">${value}${unit}</b></label>
+    <div class="steprange"><button type="button" class="stepb" data-step="${id}" data-d="-1" aria-label="פחות">−</button><input type="range" id="${id}" dir="ltr" min="${min}" max="${max}" step="${step}" value="${value}" /><button type="button" class="stepb" data-step="${id}" data-d="1" aria-label="יותר">+</button></div></div>`;
+}
+function bindStepRanges(el, onChange) {
+  $$('.steprange input[type=range]', el).forEach((r) => {
+    const unit = r.dataset.unit || '';
+    const show = () => { const v = $('#' + r.id + 'v', el); if (v) v.textContent = (+r.value).toString() + (v.dataset.unit ?? unit); };
+    r.addEventListener('input', () => { show(); onChange(); });
+  });
+  $$('.stepb', el).forEach((b) => {
+    const r = $('#' + b.dataset.step, el);
+    let timer = null;
+    const once = () => {
+      const st = +r.step || 1;
+      const v = Math.max(+r.min, Math.min(+r.max, +r.value + st * +b.dataset.d));
+      r.value = Math.round(v / st) * st;
+      r.dispatchEvent(new Event('input'));
+    };
+    const stop = () => { clearTimeout(timer); clearInterval(timer); timer = null; };
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); once(); stop(); timer = setTimeout(() => { timer = setInterval(once, 80); }, 400); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, stop));
+  });
+}
+
 async function regenerateText(obj, t) {
   busy(true, 'יוצר אותיות…');
   try {
-    const r = await call('text', { text: t.value, opts: { font: t.font, heightMm: t.heightMm, bold: t.bold, weight: t.weight, arc: t.arc, lineSpacing: t.lineSpacing || 1.15, letterSpacing: t.letterSpacing || 0 } });
+    const r = await call('text', { text: t.value, opts: textOpts(t) });
     if (!r.shapes.length) { toast('לא נמצאו אותיות לרקמה'); return false; }
     // centre at target position
     const tmp = [{ id: 'x', shapes: r.shapes }];
@@ -395,8 +445,29 @@ function fontOptions(sel) {
   return FONTS.map((f) => `<option value="${f.id}" ${f.id === sel ? 'selected' : ''}>${esc(f.label)}</option>`).join('');
 }
 
+function drawTextPreview(cv, rings, color) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth || 300, H = cv.clientHeight || 150;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  if (!rings || !rings.length) return;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const r of rings) for (const p of r) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
+  const k = Math.min((W - 20) / (x1 - x0 || 1), (H - 20) / (y1 - y0 || 1));
+  const ox = (W - (x1 - x0) * k) / 2 - x0 * k, oy = (H - (y1 - y0) * k) / 2 - y0 * k;
+  ctx.beginPath();
+  for (const r of rings) r.forEach((p, i) => (i ? ctx.lineTo(ox + p.x * k, oy + p.y * k) : ctx.moveTo(ox + p.x * k, oy + p.y * k)));
+  ctx.fillStyle = color || '#1b1b1b';
+  ctx.fill('nonzero');
+}
+
 function textDialog(existing) {
   const t = existing ? { ...existing.text } : { value: '', font: 'rubik', heightMm: 20, bold: false, arc: 0, kind: 'auto', color: '#1b1b1b', pos: null };
+  if (!t.shape) t.shape = t.arc ? 'arc' : 'straight';
+  let dir = existing ? dirKey(existing.stitch?.angle) : 'auto';
+  let customDir = existing && existing.stitch?.angle != null ? Math.round((existing.stitch.angle * 180) / Math.PI) : 0;
   let color = existing ? existing.color : t.color;
   modal(`
     <h2>${existing ? 'עריכת טקסט' : 'הוספת טקסט'}</h2>
@@ -414,7 +485,19 @@ function textDialog(existing) {
       <div class="field"><label>גובה האותיות (ס״מ)</label><input type="number" id="th" min="0.3" max="30" step="0.1" value="${(t.heightMm / 10).toFixed(1)}" /></div>
       <div class="field"><label>צבע</label><div class="row"><span class="swatch" style="background:${color}"><input type="color" id="tc" value="${color}" /></span><span id="tcn">${esc(colorName(color))}</span></div></div>
     </div>
-    <div class="field"><label>קשת: <b id="tav">${t.arc}°</b></label><input type="range" id="ta" dir="ltr" min="-270" max="270" step="5" value="${t.arc}" /><div class="hint">0 = ישר · ימינה = קשת למעלה · שמאלה = קשת למטה</div></div>
+    <div class="field"><div class="label">צורת הטקסט</div><div class="seg" id="tShape">
+      <button data-s="straight">▬ ישר</button><button data-s="arc">◠ קשת</button><button data-s="circle">◯ עיגול</button><button data-s="wave">〰 גל</button><button data-s="vertical">⇣ אנכי</button></div></div>
+    <div id="shapeOpts"></div>
+    <canvas id="tPrev" class="text-preview" aria-label="תצוגה מקדימה של הטקסט"></canvas>
+    <div class="hint" id="tPrevInfo"></div>
+    <details class="more"><summary>עוד סידור: הטיה, רווחים</summary>
+      ${stepRange('tSlant', 'הטיה (נטוי)', -25, 25, 1, t.slant || 0, '°')}
+      ${stepRange('tLs', 'רווח בין האותיות', -10, 60, 1, Math.round((t.letterSpacing || 0) * 100), '%')}
+      ${stepRange('tLh', 'רווח בין השורות', 80, 250, 5, Math.round((t.lineSpacing || 1.15) * 100), '%')}
+    </details>
+    <div class="field"><div class="label">כיוון התפר</div><div class="chips" id="tDir">${DIRS.map(([k, l]) => `<button data-d="${k}">${l}</button>`).join('')}<button data-d="custom">זווית…</button></div>
+      <div id="tDirCustom" hidden>${stepRange('tDirA', 'זווית התפר', 0, 175, 5, customDir, '°')}</div>
+      <div class="hint">"עומד" = התפרים יורדים מלמעלה למטה. "אוטומטי" = הסאטן מסתובב עם צורת האות.</div></div>
     <div class="field"><div class="label">סוג תפר</div><div class="seg" id="tk">
       <button data-k="auto" class="${t.kind === 'auto' ? 'on' : ''}">אוטומטי</button><button data-k="satin" class="${t.kind === 'satin' ? 'on' : ''}">סאטן</button><button data-k="fill" class="${t.kind === 'fill' ? 'on' : ''}">מילוי</button><button data-k="run" class="${t.kind === 'run' ? 'on' : ''}">קו</button>
     </div></div>
@@ -466,13 +549,77 @@ function textDialog(existing) {
     sample();
     $('#tv', el).oninput = sample;
     $('#tc', el).oninput = (e) => { color = e.target.value; e.target.parentElement.style.background = color; $('#tcn', el).textContent = colorName(color); };
-    $('#ta', el).oninput = (e) => { $('#tav', el).textContent = e.target.value + '°'; };
+    // ---- text shape + live preview ----
+    const drawShapeOpts = () => {
+      $$('#tShape button', el).forEach((b) => b.classList.toggle('on', b.dataset.s === t.shape));
+      const box = $('#shapeOpts', el);
+      if (t.shape === 'arc') {
+        box.innerHTML = `<div class="seg" id="arcDir" style="margin-bottom:8px"><button data-a="1" class="${(t.arc || 120) >= 0 ? 'on' : ''}">◠ קשת למעלה</button><button data-a="-1" class="${(t.arc || 120) < 0 ? 'on' : ''}">◡ קשת למטה</button></div>`
+          + stepRange('arcAmt', 'כמה מעוגל', 10, 300, 5, Math.abs(t.arc || 120), '°');
+      } else if (t.shape === 'circle') {
+        box.innerHTML = `<div class="seg" id="circSide" style="margin-bottom:8px"><button data-b="0" class="${!t.circleBottom ? 'on' : ''}">טקסט בחלק העליון</button><button data-b="1" class="${t.circleBottom ? 'on' : ''}">טקסט בחלק התחתון</button></div>`
+          + stepRange('circD', 'קוטר העיגול (ס״מ)', 2, 30, 0.5, ((t.circleDiameter || 80) / 10), '')
+          + stepRange('circR', 'סיבוב על העיגול', -180, 180, 5, t.circleRotate || 0, '°');
+      } else if (t.shape === 'wave') {
+        box.innerHTML = stepRange('wH', 'גובה הגל', 0, 150, 5, t.waveHeight ?? 40, '%')
+          + stepRange('wN', 'מספר גלים', 0.5, 4, 0.5, t.waveCount ?? 1, '')
+          + stepRange('wP', 'הזזת הגל', 0, 360, 15, t.wavePhase || 0, '°');
+      } else if (t.shape === 'vertical') box.innerHTML = '<div class="hint">האותיות יורדות אחת מתחת לשנייה – מתאים לשרוול, לסרט או לצד של תיק.</div>';
+      else box.innerHTML = '';
+      $$('#arcDir button', el).forEach((b) => (b.onclick = () => { t.arc = Math.abs(t.arc || 120) * +b.dataset.a; drawShapeOpts(); refresh(); }));
+      $$('#circSide button', el).forEach((b) => (b.onclick = () => { t.circleBottom = b.dataset.b === '1'; drawShapeOpts(); refresh(); }));
+      bindStepRanges(box, () => { readShape(); refresh(); });
+    };
+    const num = (id, d) => { const x = $('#' + id, el); return x ? +x.value : d; };
+    const readShape = () => {
+      if (t.shape === 'arc') t.arc = Math.sign(t.arc || 1) * num('arcAmt', 120);
+      if (t.shape === 'circle') { t.circleDiameter = num('circD', 8) * 10; t.circleRotate = num('circR', 0); }
+      if (t.shape === 'wave') { t.waveHeight = num('wH', 40); t.waveCount = num('wN', 1); t.wavePhase = num('wP', 0); }
+      t.slant = num('tSlant', 0); t.letterSpacing = num('tLs', 0) / 100; t.lineSpacing = num('tLh', 115) / 100;
+    };
+    $$('#tShape button', el).forEach((b) => (b.onclick = () => {
+      t.shape = b.dataset.s;
+      if (t.shape === 'arc' && !t.arc) t.arc = 120;
+      if (t.shape === 'circle' && !t.circleDiameter) t.circleDiameter = Math.max(50, Math.round((t.heightMm || 20) * 4));
+      drawShapeOpts(); refresh();
+    }));
+    let pvSeq = 0, pvTimer = null;
+    const refresh = () => {
+      clearTimeout(pvTimer);
+      pvTimer = setTimeout(async () => {
+        const seq = ++pvSeq;
+        if (!$('#tv', el)) return; // dialog closed
+        const v = $('#tv', el).value.trim() || 'לאמא היקרה';
+        const opts = textOpts({ ...t, font: $('#tf', el).value, weight, bold: weight >= 700, heightMm: Math.max(1, (+$('#th', el).value || 2) * 10) });
+        try {
+          const r = await call('layout', { text: v, opts });
+          if (seq !== pvSeq || !$('#tPrev', el)) return;
+          drawTextPreview($('#tPrev', el), r.rings, color);
+          $('#tPrevInfo', el).textContent = r.widthMm ? `גודל: ${(r.widthMm / 10).toFixed(1)} × ${(r.heightMm / 10).toFixed(1)} ס״מ` : '';
+        } catch { /* preview only */ }
+      }, 120);
+    };
+    bindStepRanges($('details.more', el), () => { readShape(); refresh(); });
+    drawShapeOpts();
+    $('#th', el).addEventListener('input', refresh);
+    $('#tv', el).addEventListener('input', refresh);
+    $('#tc', el).addEventListener('input', refresh);
+    $('#fGrid', el).addEventListener('click', () => setTimeout(refresh, 0));
+    $('#tw', el).addEventListener('click', () => setTimeout(refresh, 0));
+    // ---- stitch direction ----
+    const drawDir = () => { $$('#tDir button', el).forEach((b) => b.classList.toggle('on', b.dataset.d === dir)); $('#tDirCustom', el).hidden = dir !== 'custom'; };
+    $$('#tDir button', el).forEach((b) => (b.onclick = () => { dir = b.dataset.d; drawDir(); }));
+    bindStepRanges($('#tDirCustom', el), () => { customDir = num('tDirA', 0); });
+    drawDir();
+    refresh();
     $$('#tk button', el).forEach((b) => (b.onclick = () => { t.kind = b.dataset.k; $$('#tk button', el).forEach((x) => x.classList.toggle('on', x === b)); }));
     $('#no', el).onclick = () => { close(); if (!P.objects.length) show('home'); };
     $('#ok', el).onclick = async () => {
       const v = $('#tv', el).value.trim();
       if (!v) { toast('כתבו טקסט קודם'); return; }
-      Object.assign(t, { value: v, font: $('#tf', el).value, heightMm: Math.max(1, (+$('#th', el).value || 2) * 10), weight, bold: weight >= 700, arc: +$('#ta', el).value });
+      readShape();
+      Object.assign(t, { value: v, font: $('#tf', el).value, heightMm: Math.max(1, (+$('#th', el).value || 2) * 10), weight, bold: weight >= 700 });
+      if (t.shape !== 'arc') t.arc = 0;
       close();
       if (!existing) {
         // place new text under the existing design
@@ -483,6 +630,7 @@ function textDialog(existing) {
       obj.color = color;
       const ok = await regenerateText(obj, t);
       if (!ok) return;
+      obj.stitch = { ...(obj.stitch || {}), angle: dirAngle(dir, customDir) };
       if (!existing) P.objects.push(obj);
       if (P.name === 'טקסט' || P.name === 'עיצוב חדש') { P.name = v.split('\n')[0].slice(0, 24); $('#projName').value = P.name; }
       renderPanel();
@@ -661,7 +809,8 @@ function panelStitch(el) {
       const ang = o0.stitch?.angle != null ? Math.round((o0.stitch.angle * 180) / Math.PI) : '';
       return `<div class="card"><div class="row"><span class="needle-badge" style="background:${g.color}"></span><b>${esc(colorName(g.color))}</b></div>
         <div class="grid2" style="margin-top:8px"><select data-kind="${g.color}">${kinds.map(([v, l]) => `<option value="${v}" ${v === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
-        <input type="number" data-angle="${g.color}" placeholder="זווית (אוטו׳)" value="${ang}" min="0" max="180" step="5" aria-label="זווית תפר" /></div></div>`;
+        <select data-dirsel="${g.color}" aria-label="כיוון התפר">${DIRS.map(([kk, l]) => `<option value="${kk}" ${dirKey(o0.stitch?.angle) === kk ? 'selected' : ''}>${l}</option>`).join('')}<option value="custom" ${dirKey(o0.stitch?.angle) === 'custom' ? 'selected' : ''}>זווית אחרת…</option></select></div>
+        <div class="row" style="margin-top:6px" ${dirKey(o0.stitch?.angle) === 'custom' ? '' : 'hidden'} data-customrow="${g.color}"><span>זווית:</span><input type="number" data-angle="${g.color}" value="${ang}" min="0" max="180" step="5" aria-label="זווית תפר" style="max-width:90px" /><span>°</span></div></div>`;
     }).join('') || '<div class="empty">אין חלקים שאפשר לשנות להם תפר (קובץ מוכן או צילום בקווים).</div>'}`;
   $('#den', el).oninput = (e) => { $('#dv', el).textContent = Math.round(e.target.value * 100) + '%'; };
   $('#den', el).onchange = (e) => { P.settings.densityFactor = +e.target.value; scheduleCompile(0); };
@@ -669,6 +818,13 @@ function panelStitch(el) {
   $('#pc', el).oninput = (e) => { $('#pcv', el).textContent = (+e.target.value).toFixed(2) + ' מ״מ'; };
   $('#pc', el).onchange = (e) => { P.settings.pullComp = +e.target.value; scheduleCompile(0); };
   $$('[data-kind]', el).forEach((s) => (s.onchange = () => { P.objects.forEach((o) => { if (o.color.toLowerCase() === s.dataset.kind && o.shapes) o.stitch = { ...(o.stitch || {}), kind: s.value === 'fill' ? 'fill' : s.value }; }); scheduleCompile(0); }));
+  $$('[data-dirsel]', el).forEach((s) => (s.onchange = () => {
+    const row = el.querySelector(`[data-customrow="${s.dataset.dirsel}"]`);
+    row.hidden = s.value !== 'custom';
+    const v = dirAngle(s.value, row.querySelector('input').value);
+    P.objects.forEach((o) => { if (o.color.toLowerCase() === s.dataset.dirsel && o.shapes) o.stitch = { ...(o.stitch || {}), angle: v }; });
+    scheduleCompile(0);
+  }));
   $$('[data-angle]', el).forEach((s) => (s.onchange = () => { const v = s.value === '' ? null : (+s.value * Math.PI) / 180; P.objects.forEach((o) => { if (o.color.toLowerCase() === s.dataset.angle && o.shapes) o.stitch = { ...(o.stitch || {}), angle: v }; }); scheduleCompile(0); }));
 }
 
@@ -1055,11 +1211,16 @@ function setSelectMode(on) {
   selectMode = on;
   $('#btnSelect').classList.toggle('on', on);
   if (!on) clearSelection();
-  else toast('לחצו על חלק בעיצוב כדי לבחור אותו. אחר כך אפשר למחוק, לשנות צבע או לגרור אותו.', 4500);
+  else {
+    const bar = $('#selBar');
+    bar.innerHTML = '<div class="selrow"><b class="grow">👆 לחצו על חלק בעיצוב כדי לבחור אותו – או גררו אותו ישר באצבע</b><button data-x>✕</button></div>';
+    bar.hidden = false;
+    $('[data-x]', bar).onclick = () => setSelectMode(false);
+  }
 }
 $('#btnSelect').onclick = () => setSelectMode(!selectMode);
 
-function clearSelection() { selected = null; preview.selection = null; $('#selBar').hidden = true; preview.request(); }
+function clearSelection() { selected = null; preview.selection = null; if (selectMode) setSelectMode(true); else $('#selBar').hidden = true; preview.request(); }
 
 function objRings(o) {
   if (o.shapes) return o.shapes.map((s) => s.outer);
@@ -1092,18 +1253,73 @@ function showSelection() {
   const bar = $('#selBar');
   const part = selected.shapeIndex >= 0 && o.shapes.length > 1;
   bar.innerHTML = `
-    <b>${esc(o.name || 'חלק')}</b>
-    ${part ? '<button data-sa="delPart">🗑️ מחק את החלק</button>' : ''}
-    <button data-sa="delObj">🗑️ מחק ${o.type === 'text' ? 'את כל הטקסט' : part ? 'את כל החלקים בצבע הזה' : ''}</button>
-    ${selected.shapeIndex >= 0 ? `<label class="selcolor">🎨 צבע לחלק<input type="color" value="${o.color}" data-sa="color" /></label>` : ''}
-    <button data-sa="close">✕</button>
-    <small>אפשר לגרור באצבע כדי להזיז</small>`;
+    <div class="selrow"><b class="grow">${esc(o.name || 'חלק')}</b>
+      ${o.type === 'text' ? '<button data-sa="edit">✏️ עריכה</button>' : ''}
+      <button data-sa="close" aria-label="סגירה">✕</button></div>
+    <div class="selrow">
+      ${part ? '<button data-sa="delPart">🗑️ מחק חלק</button>' : ''}
+      <button data-sa="delObj">🗑️ מחק ${o.type === 'text' ? 'טקסט' : part ? 'את כל הצבע' : ''}</button>
+      ${selected.shapeIndex >= 0 ? `<label class="selcolor">🎨 צבע<input type="color" value="${o.color}" data-sa="color" /></label>` : ''}
+      ${o.shapes ? `<label class="dirpick">תפר <select data-sa="dir">${DIRS.map(([kk, l]) => `<option value="${kk}" ${dirKey(o.stitch?.angle) === kk ? 'selected' : ''}>${l}</option>`).join('')}${dirKey(o.stitch?.angle) === 'custom' ? '<option value="custom" selected>זווית אחרת</option>' : ''}</select></label>` : ''}
+    </div>
+    <div class="nudge">
+      <div class="pad"><span></span><button data-nd="0,-1" aria-label="למעלה">▲</button><span></span><button data-nd="-1,0" aria-label="שמאלה">◀</button><button data-sa="center" aria-label="למרכז החישוק" title="למרכז">⊙</button><button data-nd="1,0" aria-label="ימינה">▶</button><span></span><button data-nd="0,1" aria-label="למטה">▼</button><span></span></div>
+      <div class="nudge-side">
+        <div class="seg small" id="ndStep"><button data-st="0.5">½ מ״מ</button><button data-st="1">1 מ״מ</button><button data-st="5">5 מ״מ</button></div>
+        <div class="selrow"><button data-sa="cx">⇔ מרכז לרוחב</button><button data-sa="cy">⇕ מרכז לגובה</button></div>
+        <small id="selPos"></small>
+      </div>
+    </div>`;
   bar.hidden = false;
   $$('[data-sa]', bar).forEach((b) => {
     if (b.dataset.sa === 'color') { b.onchange = () => recolorSelectedPart(b.value); return; }
-    b.onclick = () => ({ delPart: deleteSelectedPart, delObj: deleteSelectedObject, close: clearSelection })[b.dataset.sa]();
+    if (b.dataset.sa === 'dir') { b.onchange = () => { o.stitch = { ...(o.stitch || {}), angle: dirAngle(b.value) }; scheduleCompile(0); }; return; }
+    b.onclick = () => ({
+      delPart: deleteSelectedPart, delObj: deleteSelectedObject, close: clearSelection,
+      edit: () => { const ob = o; clearSelection(); textDialog(ob); },
+      center: () => centerSelected(true, true), cx: () => centerSelected(true, false), cy: () => centerSelected(false, true),
+    })[b.dataset.sa]();
   });
+  $$('#ndStep button', bar).forEach((b) => { b.classList.toggle('on', +b.dataset.st === nudgeStep); b.onclick = () => { nudgeStep = +b.dataset.st; $$('#ndStep button', bar).forEach((x) => x.classList.toggle('on', x === b)); }; });
+  $$('[data-nd]', bar).forEach((b) => {
+    const [ux, uy] = b.dataset.nd.split(',').map(Number);
+    let timer = null, n = 0;
+    const once = () => { n++; const k = n > 12 ? 3 : 1; nudgeSelected(ux * nudgeStep * k, uy * nudgeStep * k); };
+    const stop = () => { clearTimeout(timer); clearInterval(timer); timer = null; n = 0; };
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); stop(); once(); timer = setTimeout(() => { timer = setInterval(once, 70); }, 380); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, stop));
+  });
+  updateSelPos();
   preview.request();
+}
+
+let nudgeStep = 1;
+function selectionOverlay() {
+  if (!selected) return null;
+  const o = selected.obj;
+  const rings = o.shapes ? o.shapes.flatMap((s) => [s.outer, ...s.holes]) : objRings(o);
+  return { rings, offset: { x: 0, y: 0 }, fill: o.color };
+}
+function updateSelPos() {
+  const el = $('#selPos');
+  if (!el || !selected) return;
+  const b = designBounds([selected.obj]);
+  const cx = (b.minX + b.maxX) / 2, cy = (b.minY + b.maxY) / 2;
+  const f = (v) => (v >= 0 ? '+' : '−') + Math.abs(v / 10).toFixed(2);
+  el.textContent = `מרחק מהמרכז: ${f(cx)} ס״מ לרוחב · ${f(cy)} ס״מ לגובה. גוררים באצבע או לוחצים על החצים (לחיצה ארוכה = תנועה רציפה).`;
+}
+function nudgeSelected(dx, dy) {
+  if (!selected) return;
+  translateObject(selected.obj, dx, dy);
+  preview.selection = selectionOverlay();
+  updateSelPos();
+  preview.request();
+  scheduleCompile(350);
+}
+function centerSelected(horiz, vert) {
+  if (!selected) return;
+  const b = designBounds([selected.obj]);
+  nudgeSelected(horiz ? -(b.minX + b.maxX) / 2 : 0, vert ? -(b.minY + b.maxY) / 2 : 0);
 }
 
 function deleteSelectedPart() {
@@ -1158,10 +1374,11 @@ preview.onTap = (mm) => {
   showSelection();
 };
 preview.onDragStart = (mm) => {
-  if (!selectMode || !selected) return false;
+  if (!selectMode) return false;
   const h = hitTest(mm);
-  if (!h || h.obj !== selected.obj) return false;
-  preview.selection = { rings: objRings(selected.obj), offset: { x: 0, y: 0 } };
+  if (!h) return false;
+  if (!selected || h.obj !== selected.obj) { selected = h; showSelection(); }
+  preview.selection = selectionOverlay();
   return true;
 };
 preview.onDrag = (dx, dy) => { if (preview.selection) preview.selection.offset = { x: dx, y: dy }; };
@@ -1347,7 +1564,7 @@ function namesDialog() {
         for (let i = 0; i < names.length; i++) {
           $('#nmMsg', el).textContent = `יוצר ${i + 1} מתוך ${names.length}: ${names[i]}…`;
           const t = { ...target.text, value: names[i] };
-          const r = await call('text', { text: t.value, opts: { font: t.font, heightMm: t.heightMm, bold: t.bold, weight: t.weight, arc: t.arc, lineSpacing: t.lineSpacing || 1.15, letterSpacing: t.letterSpacing || 0 } });
+          const r = await call('text', { text: t.value, opts: textOpts(t) });
           const cb = designBounds([target]);
           const nb = designBounds([{ shapes: r.shapes }]);
           const dx = (cb.minX + cb.maxX) / 2 - (nb.minX + nb.maxX) / 2, dy = (cb.minY + cb.maxY) / 2 - (nb.minY + nb.maxY) / 2;
@@ -1373,4 +1590,4 @@ function namesDialog() {
 
 renderRecent();
 // expose for automated tests
-window.__lema = { get preview() { return preview; }, get project() { return P; }, get compiled() { return compiled; }, get warnings() { return warnings; } };
+window.__lema = { get preview() { return preview; }, get project() { return P; }, get compiled() { return compiled; }, get warnings() { return warnings; }, selectFirst() { if (!selectMode) setSelectMode(true); selected = { obj: P.objects[0], shapeIndex: 0 }; showSelection(); } };

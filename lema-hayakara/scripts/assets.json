@@ -618,5 +618,250 @@
   "path": "public/models/u2net_human_seg.onnx",
   "url": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net_human_seg.onnx",
   "sha256": "01eb6a29a5c4d8edb30b56adad9bb3a2a0535338e480724a213e0acfd2d1c73c"
+ },
+ {
+  "path": "public/fonts/StamAshkenazCLM.ttf",
+  "sha256": "18aec29cd0f3e2f31049224712e740468fc893344289ceb1c86b02b619854ca6",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/StamAshkenazCLM.ttf"
+  }
+ },
+ {
+  "path": "public/fonts/StamSefaradCLM.ttf",
+  "sha256": "0a07a15927e5288b19d8d408a269fde21746b53f24d1085abab0df311fb94cbe",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/StamSefaradCLM.ttf"
+  }
+ },
+ {
+  "path": "public/fonts/AharoniCLM-Book.otf",
+  "sha256": "3a54754753e6937aa82004674f7875aabac937046fa75a743c7d1b0226a8e729",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/AharoniCLM-Book.otf"
+  }
+ },
+ {
+  "path": "public/fonts/AharoniCLM-Bold.otf",
+  "sha256": "74727351d7763da648ac1104897d7dd8afa167a5cbb84a232bd6389dbb8d1d39",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/AharoniCLM-Bold.otf"
+  }
+ },
+ {
+  "path": "public/fonts/DavidCLM-Medium.otf",
+  "sha256": "5122bf1c6351da6c5ceddad533c473082a3bd2e48c3e875c952b235419097c5d",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/DavidCLM-Medium.otf"
+  }
+ },
+ {
+  "path": "public/fonts/DavidCLM-Bold.otf",
+  "sha256": "9eab2bf76bbd24e44efc78cf372bb70b1310a92c4bd41eaac7f0ccdce1621703",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/DavidCLM-Bold.otf"
+  }
+ },
+ {
+  "path": "public/fonts/DrugulinCLM-Bold.otf",
+  "sha256": "baa8ddad5e6f012844cf9300eabdb3ca6702930608746576bbec60e3ffa9601e",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/DrugulinCLM-Bold.otf"
+  }
+ },
+ {
+  "path": "public/fonts/ElliniaCLM-Light.otf",
+  "sha256": "2a32ee44d31346e705141cfaf90390d9c2135bba5ee230d7caa42365d9e86e9a",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/ElliniaCLM-Light.otf"
+  }
+ },
+ {
+  "path": "public/fonts/ElliniaCLM-Bold.otf",
+  "sha256": "152a07e0240d14f17caf095a310b93164898342e4561da0ed288736d4ea8ad27",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/ElliniaCLM-Bold.otf"
+  }
+ },
+ {
+  "path": "public/fonts/HadasimCLM-Regular.otf",
+  "sha256": "950cbb40f332b2dfaa36d71461caa385245a4f33ae3478ef03c7e6bb0d960a0c",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/HadasimCLM-Regular.otf"
+  }
+ },
+ {
+  "path": "public/fonts/HadasimCLM-Bold.otf",
+  "sha256": "6966208f183ad903b4155db069300733bbdf9f9c6afe5acbfe1657ff4d879ce5",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/HadasimCLM-Bold.otf"
+  }
+ },
+ {
+  "path": "public/fonts/KeterYG-Medium.ttf",
+  "sha256": "8932f09803d78a0bd8de9eff9b39972c7d73d94dd27091d6ddb27ad6d1648034",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/KeterYG-Medium.ttf"
+  }
+ },
+ {
+  "path": "public/fonts/KeterYG-Bold.ttf",
+  "sha256": "c722d3b6ed0bf47fa4326c77e56ad0e8d7cffd2780bd358307dfc0a3cfa7de1e",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/KeterYG-Bold.ttf"
+  }
+ },
+ {
+  "path": "public/fonts/MiriamCLM-Book.otf",
+  "sha256": "b6bf0af80cf77817ce47b687bad28e11ecc9f3f7a07ff0f0bfbbee2f44be9b5c",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/MiriamCLM-Book.otf"
+  }
+ },
+ {
+  "path": "public/fonts/MiriamCLM-Bold.otf",
+  "sha256": "e119adeffcc47301d1cce9b6dc61e8c8f0b228af406401005fe32b6f6a4f0b56",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/MiriamCLM-Bold.otf"
+  }
+ },
+ {
+  "path": "public/fonts/NachlieliCLM-Light.otf",
+  "sha256": "41a9ea4e896702036c2cae75368fcde2ac3042611eefb38d22f92463098a64a7",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/NachlieliCLM-Light.otf"
+  }
+ },
+ {
+  "path": "public/fonts/NachlieliCLM-Bold.otf",
+  "sha256": "4b43572203b7fb64ef50ec93a48b104ef5536d2c1179b4d08dd5fad96a95b509",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/NachlieliCLM-Bold.otf"
+  }
+ },
+ {
+  "path": "public/fonts/ShofarRegular.ttf",
+  "sha256": "7913fdd35fa1446d836f1cb9bc119a922ff075ec2fee7fa0eb39f43a89fc17c5",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/ShofarRegular.ttf"
+  }
+ },
+ {
+  "path": "public/fonts/ShofarDemi-Bold.ttf",
+  "sha256": "22faea394beff1713e8a340177da230bfb694411e1fad58e147a02bc1ba03e9f",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/ShofarDemi-Bold.ttf"
+  }
+ },
+ {
+  "path": "public/fonts/SimpleCLM-Medium.ttf",
+  "sha256": "74a04735bcee04b1c0a5f00afec84d805b4d69c70eb43f45ec806e6344e7240c",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/SimpleCLM-Medium.ttf"
+  }
+ },
+ {
+  "path": "public/fonts/SimpleCLM-Bold.ttf",
+  "sha256": "595895089adb22c765e1caac55e6a41288f2be3242f91e035531b1d6cbfb5030",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/SimpleCLM-Bold.ttf"
+  }
+ },
+ {
+  "path": "public/fonts/YehudaCLM-Light.otf",
+  "sha256": "a992ef79048e005988636366ac28fc1e1d0a8ce0d061c5e238fce49e49777ffd",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/YehudaCLM-Light.otf"
+  }
+ },
+ {
+  "path": "public/fonts/YehudaCLM-Bold.otf",
+  "sha256": "4352d2ea2c03fab4c77d2b45975739dfa1894a300d7a0a602e8f2febda7f6b83",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/YehudaCLM-Bold.otf"
+  }
+ },
+ {
+  "path": "public/fonts/culmus-LICENSE.txt",
+  "sha256": "8b8838d119e703b0b4b2a9b406430ffe3058274a9314cb2cca1ed85870151c9d",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/LICENSE"
+  }
+ },
+ {
+  "path": "public/fonts/culmus-GPL.txt",
+  "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+  "archive": {
+   "url": "https://downloads.sourceforge.net/project/culmus/culmus/0.140/culmus-0.140.tar.gz",
+   "sha256": "6daed104481007752a76905000e71c0093c591c8ef3017d1b18222c277fc52e3",
+   "member": "culmus-0.140/GNU-GPL"
+  }
+ },
+ {
+  "path": "public/fonts/IBMPlexSansHebrew-Light.ttf",
+  "url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/ibmplexsanshebrew/IBMPlexSansHebrew-Light.ttf",
+  "sha256": "0d7f6392a7f3e1422aacf56e435b030f9691b4c87f4dabe73cf261e77ffef7bc"
+ },
+ {
+  "path": "public/fonts/IBMPlexSansHebrew-Medium.ttf",
+  "url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/ibmplexsanshebrew/IBMPlexSansHebrew-Medium.ttf",
+  "sha256": "15b5d6b20f5b4007f2d709ff786266ff62ba9b13ba4e5ac4d23f37d554d68534"
+ },
+ {
+  "path": "public/fonts/IBMPlexSansHebrew-SemiBold.ttf",
+  "url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/ibmplexsanshebrew/IBMPlexSansHebrew-SemiBold.ttf",
+  "sha256": "3ca3829acbeb58f0832f3320a54bab233904c07d0d1dc79b7f1ff3f36ba68b2d"
+ },
+ {
+  "path": "public/fonts/IBMPlexSansHebrew-Bold.ttf",
+  "url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/ibmplexsanshebrew/IBMPlexSansHebrew-Bold.ttf",
+  "sha256": "4468a526f606ac74e8db9125b785a932cf55a265f8e358855371bed6126a1637"
  }
 ]

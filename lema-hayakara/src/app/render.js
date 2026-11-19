@@ -118,6 +118,18 @@ export class Preview {
     if (this.selection && this.selection.rings) {
       const off = this.selection.offset || { x: 0, y: 0 };
       ctx.save();
+      if (this.selection.fill) {
+        // ghost of the object at its new place while moving
+        ctx.beginPath();
+        for (const r of this.selection.rings) {
+          r.forEach((p, i) => { const x = (p.x + off.x) * s, y = (p.y + off.y) * s; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+          ctx.closePath();
+        }
+        ctx.globalAlpha = 0.45;
+        ctx.fillStyle = this.selection.fill;
+        ctx.fill('evenodd');
+        ctx.globalAlpha = 1;
+      }
       ctx.setLineDash([6, 4]);
       ctx.lineWidth = 2;
       for (const [col, w] of [['#ffffff', 4], ['#e0115f', 2]]) {
@@ -170,8 +182,8 @@ export class Preview {
       if (arr.length === 1) {
         const [x, y] = arr[0];
         if (dragging && down) {
-          const mm = this.toMm(x, y);
-          this.onDrag?.(mm.x - down.mm.x, mm.y - down.mm.y);
+          // screen-pixel delta / scale: stays right even if the stage is resized mid-drag
+          this.onDrag?.((x - down.x) / this.view.scale, (y - down.y) / this.view.scale);
           this.request();
           return;
         }
@@ -194,8 +206,7 @@ export class Preview {
       if (down && pts.size === 1 && e.type === 'pointerup') {
         const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
         if (dragging) {
-          const mm = this.toMm(e.clientX, e.clientY);
-          if (moved > 4) this.onDragEnd?.(mm.x - down.mm.x, mm.y - down.mm.y);
+          if (moved > 4) this.onDragEnd?.((e.clientX - down.x) / this.view.scale, (e.clientY - down.y) / this.view.scale);
           else { this.onDragEnd?.(0, 0); this.onTap?.(this.toMm(e.clientX, e.clientY)); }
         } else if (moved < 8 && Date.now() - down.t < 500) this.onTap?.(this.toMm(e.clientX, e.clientY));
       }

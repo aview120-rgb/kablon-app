@@ -33,7 +33,7 @@ export const FONTS = [
   { id: 'heebo', label: 'היבו', file: 'Heebo-VF.ttf', cat: 'he-clean', bold: true },
   { id: 'assistant', label: 'אסיסטנט', file: 'Assistant-VF.ttf', cat: 'he-clean', bold: true },
   { id: 'opensans', label: 'אופן סאנס', file: 'OpenSans-VF.ttf', cat: 'he-clean', bold: true },
-  { id: 'ibmplexhe', label: 'IBM פלקס', file: 'IBMPlexSansHebrew-Regular.ttf', cat: 'he-clean' },
+  { id: 'ibmplexhe', label: 'IBM פלקס', file: 'IBMPlexSansHebrew-Regular.ttf', cat: 'he-clean', bold: true, files: { 300: 'IBMPlexSansHebrew-Light.ttf', 400: 'IBMPlexSansHebrew-Regular.ttf', 500: 'IBMPlexSansHebrew-Medium.ttf', 600: 'IBMPlexSansHebrew-SemiBold.ttf', 700: 'IBMPlexSansHebrew-Bold.ttf' } },
   { id: 'arimo', label: 'אריאל (Arimo)', file: 'Arimo-VF.ttf', cat: 'he-clean', bold: true },
   { id: 'notohebrew', label: 'נוטו עברית', file: 'NotoSansHebrew-VF.ttf', cat: 'he-clean', bold: true },
   { id: 'alef', label: 'אלף', file: 'Alef-Regular.ttf', cat: 'he-clean' },
@@ -45,7 +45,7 @@ export const FONTS = [
   { id: 'solitreo', label: 'סוליטראו – כתב רהוט', file: 'Solitreo-Regular.ttf', cat: 'he-cursive' },
   { id: 'amatic', label: 'אמטיק – כתב יד צר', file: 'AmaticSC-Regular.ttf', cat: 'he-hand' },
   { id: 'karantina', label: 'קרנטינה – צר וגבוה', file: 'Karantina-Regular.ttf', cat: 'he-hand' },
-  { id: 'stam', label: 'סת״ם – עבה במיוחד', file: 'FrankRuhlLibre-VF.ttf', cat: 'he-classic', bold: true, weight: 900 },
+  { id: 'stam', label: 'פרנק עבה (דמוי סת״ם)', file: 'FrankRuhlLibre-VF.ttf', cat: 'he-classic', bold: true, weight: 900 },
   { id: 'frank', label: 'פרנק רוהל – ספר', file: 'FrankRuhlLibre-VF.ttf', cat: 'he-classic', bold: true },
   { id: 'notoserifhe', label: 'נוטו סריף עברי', file: 'NotoSerifHebrew-VF.ttf', cat: 'he-classic', bold: true },
   { id: 'rashi', label: 'כתב רש״י', file: 'NotoRashiHebrew-VF.ttf', cat: 'he-classic', bold: true },
@@ -57,6 +57,20 @@ export const FONTS = [
   { id: 'suez', label: 'סואץ', file: 'SuezOne-Regular.ttf', cat: 'he-bold' },
   { id: 'rubikmono', label: 'רוביק מונו – רחב', file: 'RubikMonoOne-Regular.ttf', cat: 'he-bold' },
   { id: 'heeboblack', label: 'היבו שחור', file: 'Heebo-VF.ttf', cat: 'he-bold', bold: true, weight: 900 },
+  // Culmus project (GPL with font exception)
+  { id: 'stamashk', label: 'סת״ם אשכנזי – כתב סופר', file: 'StamAshkenazCLM.ttf', cat: 'he-classic' },
+  { id: 'stamsfrd', label: 'סת״ם ספרדי (וועליש)', file: 'StamSefaradCLM.ttf', cat: 'he-classic' },
+  { id: 'keter', label: 'כתר', file: 'KeterYG-Medium.ttf', cat: 'he-classic', bold: true, files: { 400: 'KeterYG-Medium.ttf', 700: 'KeterYG-Bold.ttf' } },
+  { id: 'shofar', label: 'שופר', file: 'ShofarRegular.ttf', cat: 'he-classic', bold: true, files: { 400: 'ShofarRegular.ttf', 700: 'ShofarDemi-Bold.ttf' } },
+  { id: 'davidclm', label: 'דוד קלאסי', file: 'DavidCLM-Medium.otf', cat: 'he-classic', bold: true, files: { 400: 'DavidCLM-Medium.otf', 700: 'DavidCLM-Bold.otf' } },
+  { id: 'drugulin', label: 'דרוגולין – ספר ישן', file: 'DrugulinCLM-Bold.otf', cat: 'he-classic' },
+  { id: 'hadasim', label: 'הדסים', file: 'HadasimCLM-Regular.otf', cat: 'he-clean', bold: true, files: { 400: 'HadasimCLM-Regular.otf', 700: 'HadasimCLM-Bold.otf' } },
+  { id: 'nachlieli', label: 'נחליאלי', file: 'NachlieliCLM-Light.otf', cat: 'he-clean', bold: true, files: { 300: 'NachlieliCLM-Light.otf', 700: 'NachlieliCLM-Bold.otf' } },
+  { id: 'miriamclm', label: 'מרים קלאסי', file: 'MiriamCLM-Book.otf', cat: 'he-clean', bold: true, files: { 400: 'MiriamCLM-Book.otf', 700: 'MiriamCLM-Bold.otf' } },
+  { id: 'yehuda', label: 'יהודה', file: 'YehudaCLM-Light.otf', cat: 'he-clean', bold: true, files: { 300: 'YehudaCLM-Light.otf', 700: 'YehudaCLM-Bold.otf' } },
+  { id: 'ellinia', label: 'אליניה – מודרני עגול', file: 'ElliniaCLM-Light.otf', cat: 'he-round', bold: true, files: { 300: 'ElliniaCLM-Light.otf', 700: 'ElliniaCLM-Bold.otf' } },
+  { id: 'aharoni', label: 'אהרוני – כותרות', file: 'AharoniCLM-Book.otf', cat: 'he-bold', bold: true, weight: 700, files: { 400: 'AharoniCLM-Book.otf', 700: 'AharoniCLM-Bold.otf' } },
+  { id: 'simple', label: 'סימפל', file: 'SimpleCLM-Medium.ttf', cat: 'he-bold', bold: true, files: { 400: 'SimpleCLM-Medium.ttf', 700: 'SimpleCLM-Bold.ttf' } },
   { id: 'rubikbubbles', label: 'בועות', file: 'RubikBubbles-Regular.ttf', cat: 'he-fun' },
   { id: 'rubikwet', label: 'צבע נוזל', file: 'RubikWetPaint-Regular.ttf', cat: 'he-fun' },
   { id: 'rubikpuddles', label: 'שלוליות', file: 'RubikPuddles-Regular.ttf', cat: 'he-fun' },
@@ -194,15 +208,25 @@ async function pickFonts(chars, primary) {
  * Lay out text and return glyph rings in mm (y down).
  * opts: { font: id, heightMm, bold, letterSpacing (em), lineSpacing, arc (degrees, + = up), align }
  */
+/** The font file for a family at a weight (families with separate files per weight). */
+export function fontFileFor(fdef, weight) {
+  if (!fdef.files) return fdef.file;
+  let best = null;
+  for (const k of Object.keys(fdef.files)) if (best === null || Math.abs(+k - weight) < Math.abs(+best - weight) || (Math.abs(+k - weight) === Math.abs(+best - weight) && +k > +best)) best = k;
+  return fdef.files[best];
+}
+
 export async function layoutText(text, opts = {}) {
   const o = { font: 'rubik', heightMm: 20, bold: false, letterSpacing: 0, lineSpacing: 1.15, arc: 0, align: 'center', ...opts };
   const fdef = FONTS.find((f) => f.id === o.font) || FONTS[0];
+  const wantWeight = o.weight || fdef.weight || (o.bold ? 700 : 400);
+  const primary = fontFileFor(fdef, wantWeight);
   const lines = text.replace(/\r/g, '').split('\n');
   const outLines = [];
   for (const line of lines) {
     const chars = codepoints(line);
     if (!chars.length) { outLines.push({ glyphs: [], width: 0 }); continue; }
-    let fonts = await pickFonts(chars, fdef.file);
+    let fonts = await pickFonts(chars, primary);
     // drop characters no font can draw (e.g. colour emoji) instead of printing boxes
     const keep = fonts.map((f) => f !== 'missing');
     chars.splice(0, chars.length, ...chars.filter((_, i) => keep[i]));
@@ -240,7 +264,7 @@ export async function layoutText(text, opts = {}) {
       const f = run.font;
       if (f.axes && f.axes.wght) {
         const ax = f.axes.wght;
-        const want = f.file === fdef.file ? (o.weight || fdef.weight || (o.bold ? 700 : 400)) : (o.bold ? 700 : 400);
+        const want = f.file === primary ? wantWeight : (o.bold ? 700 : 400);
         const v = Math.max(ax.minValue ?? want, Math.min(ax.maxValue ?? want, want));
         f.font.setVariations([new hb.Variation('wght', v)]);
       }
@@ -268,13 +292,11 @@ export async function layoutText(text, opts = {}) {
   }
   // stack lines; units still em; baseline of line k at k*lineSpacing
   const maxW = Math.max(0, ...outLines.map((l) => l.width));
-  const straight = [];
   const glyphList = [];
   outLines.forEach((ln, k) => {
     const dx = o.align === 'center' ? (maxW - ln.width) / 2 : o.align === 'right' ? maxW - ln.width : 0;
     for (const g of ln.glyphs) {
       const moved = g.rings.map((r) => r.map((p) => ({ x: p.x + dx, y: p.y + k * o.lineSpacing })));
-      straight.push(...moved);
       glyphList.push({ rings: moved, cx: g.x0 + dx + g.adv / 2, line: k });
     }
   });
@@ -286,39 +308,94 @@ export async function layoutText(text, opts = {}) {
     if (b > a) lineH = Math.max(lineH, b - a);
   });
   if (!lineH) return { rings: [], widthMm: 0, heightMm: 0 };
-  const s = o.heightMm / lineH;
-  const rings = o.arc ? applyArc(glyphList, maxW, o.arc) : straight;
+  const s = o.heightMm / lineH; // mm per em
+  let glyphs = glyphList;
+  // slant (italic) around each line's baseline
+  if (o.slant) {
+    const k = Math.tan((Math.max(-30, Math.min(30, o.slant)) * Math.PI) / 180);
+    glyphs = glyphs.map((g) => ({ ...g, rings: g.rings.map((r) => r.map((p) => ({ x: p.x - (p.y - g.line * o.lineSpacing) * k, y: p.y }))) }));
+  }
+  const shape = o.shape || (o.arc ? 'arc' : 'straight');
+  let rings;
+  if (shape === 'arc' && o.arc) rings = applyArc(glyphs, maxW, o.arc);
+  else if (shape === 'circle') rings = applyCircle(glyphs, maxW, lineH, o, s);
+  else if (shape === 'wave') rings = applyWave(glyphs, maxW, lineH, o);
+  else if (shape === 'vertical') rings = applyVertical(glyphs, lineH, o, text);
+  else rings = glyphs.flatMap((g) => g.rings);
   let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
   for (const r of rings) for (const p of r) { bx0 = Math.min(bx0, p.x); by0 = Math.min(by0, p.y); bx1 = Math.max(bx1, p.x); by1 = Math.max(by1, p.y); }
+  if (!(bx1 > bx0)) return { rings: [], widthMm: 0, heightMm: 0 };
   const final = rings.map((r) => r.map((p) => ({ x: (p.x - bx0) * s, y: (p.y - by0) * s })));
   return { rings: final, widthMm: (bx1 - bx0) * s, heightMm: (by1 - by0) * s };
 }
 
-function applyArc(glyphs, width, arcDeg) {
-  // arcDeg: total angle the text spans; positive bends like a smile upside-down (top arc)
-  const total = (Math.abs(arcDeg) * Math.PI) / 180;
-  const R = width / Math.max(total, 1e-3);
-  const up = arcDeg > 0;
+// place each glyph on a circle of radius R (em) – `top` = letters stand on the outside, reading left to right over the top
+function onCircle(glyphs, width, R, top, rot) {
   const out = [];
   for (const g of glyphs) {
-    const theta = (g.cx - width / 2) / R; // angle from top
-    const c = Math.cos(theta), s = Math.sin(theta);
+    const theta = (g.cx - width / 2) / R + rot;
     for (const r of g.rings) {
       out.push(r.map((p) => {
-        const lx = p.x - g.cx; // local x relative to glyph centre
-        const ly = p.y;        // baseline at 0, y down (negative = above baseline)
-        if (up) {
-          // circle centre below the text
-          const rad = R - ly;
-          const ang = theta + lx / R;
-          return { x: Math.sin(ang) * rad, y: -Math.cos(ang) * rad + R };
-        }
-        const rad = R + ly;
+        const lx = p.x - g.cx;
+        const ly = p.y;
         const ang = theta + lx / R;
-        return { x: Math.sin(ang) * rad, y: Math.cos(ang) * rad - R };
+        if (top) { const rad = R - ly; return { x: Math.sin(ang) * rad, y: -Math.cos(ang) * rad }; }
+        const rad = R + ly;
+        return { x: Math.sin(ang) * rad, y: Math.cos(ang) * rad };
       }));
-      void c; void s;
     }
+  }
+  return out;
+}
+
+function applyArc(glyphs, width, arcDeg) {
+  // arcDeg: total angle the text spans; positive = arched up (rainbow), negative = smile
+  const total = (Math.abs(arcDeg) * Math.PI) / 180;
+  const R = width / Math.max(total, 1e-3);
+  return onCircle(glyphs, width, R, arcDeg > 0, 0);
+}
+
+// text around a full circle: o.circleDiameter (mm, baseline), o.circleRotate (deg), o.circleBottom (reads along the bottom)
+function applyCircle(glyphs, width, lineH, o, s) {
+  let R = (o.circleDiameter || 80) / 2 / s;
+  R = Math.max(R, width / (2 * Math.PI * 0.97), lineH * 0.8); // letters never overlap themselves
+  const rot = ((o.circleRotate || 0) * Math.PI) / 180;
+  return onCircle(glyphs, width, R, !o.circleBottom, o.circleBottom ? -rot : rot);
+}
+
+// wave: o.waveHeight (% of letter height), o.waveCount (number of waves over the text), o.wavePhase (deg)
+// every point follows the wave, so letters stay upright and never run into each other
+function applyWave(glyphs, width, lineH, o) {
+  const A = ((o.waveHeight ?? 40) / 100) * lineH;
+  const n = Math.max(0.25, o.waveCount ?? 1);
+  const ph = ((o.wavePhase || 0) * Math.PI) / 180;
+  const k = (2 * Math.PI * n) / Math.max(width, 1e-6);
+  const out = [];
+  for (const g of glyphs) for (const r of g.rings) out.push(r.map((p) => ({ x: p.x, y: p.y + A * Math.sin(k * p.x + ph) })));
+  return out;
+}
+
+// letters stacked one under the other (reading order), each centred
+function applyVertical(glyphs, lineH, o, text) {
+  const rtl = /[\u0590-\u08ff]/.test(text);
+  const byLine = new Map();
+  for (const g of glyphs) { if (!byLine.has(g.line)) byLine.set(g.line, []); byLine.get(g.line).push(g); }
+  const out = [];
+  const step = lineH * (1.25 + (o.letterSpacing || 0));
+  let col = 0;
+  for (const [, list] of [...byLine.entries()].sort((a, b) => a[0] - b[0])) {
+    list.sort((a, b) => (rtl ? b.cx - a.cx : a.cx - b.cx));
+    let row = 0;
+    for (const g of list) {
+      if (!g.rings.length) { row += 0.6; continue; } // space
+      let x0 = Infinity, x1 = -Infinity;
+      for (const r of g.rings) for (const p of r) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); }
+      const cx = (x0 + x1) / 2, base = g.line * o.lineSpacing;
+      const X = (rtl ? -col : col) * lineH * 1.6;
+      for (const r of g.rings) out.push(r.map((p) => ({ x: X + p.x - cx, y: row * step + (p.y - base) })));
+      row++;
+    }
+    col++;
   }
   return out;
 }

@@ -1,7 +1,7 @@
 // Background worker: all heavy embroidery work runs here so the screen never freezes.
 import { digitizeImage, compileDesign, centerObjects, mergeSimilarColors } from './engine/design.js';
 import { photoLines } from './engine/photo.js';
-import { setFontLoader, textToShapes } from './engine/text.js';
+import { setFontLoader, textToShapes, layoutText } from './engine/text.js';
 import { removeBackground } from './engine/ai.js';
 import { readDST, readEXP, readPES, readJEF } from './engine/formats.js';
 import { patternToObjects } from './engine/design.js';
@@ -47,6 +47,9 @@ const handlers = {
   async photo({ img, opts }) {
     const d = photoLines(img, opts);
     return { result: { ...d, objects: centerObjects(d.objects) } };
+  },
+  async layout({ text, opts }) {
+    return { result: await layoutText(text, opts) };
   },
   async text({ text, opts }) {
     const r = await textToShapes(text, opts);

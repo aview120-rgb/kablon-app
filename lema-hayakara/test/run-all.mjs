@@ -152,4 +152,25 @@ await test('background with knock-out and border', async () => {
   fs.writeFileSync(OUT + 'talit.dst', writeDST(toPattern(c)));
 });
 
+await test('text shapes: arc, circle, wave, vertical, slant – and real STaM font', async () => {
+  const flat = await textToShapes('לאמא היקרה', { font: 'rubik', heightMm: 15 });
+  for (const o of [{ shape: 'arc', arc: 120 }, { shape: 'circle', circleDiameter: 80 }, { shape: 'circle', circleDiameter: 80, circleBottom: true }, { shape: 'wave', waveHeight: 50, waveCount: 1.5 }, { shape: 'vertical' }, { slant: 15 }]) {
+    const r = await textToShapes('לאמא היקרה', { font: 'rubik', heightMm: 15, ...o });
+    assert.ok(r.shapes.length >= 8, JSON.stringify(o) + ' letters ' + r.shapes.length);
+    const c = compileDesign([{ id: 't', color: '#000', shapes: r.shapes, stitch: { kind: 'auto' } }]);
+    assert.ok(designStats(c).longest < 7.1);
+    if (o.shape === 'vertical') assert.ok(r.heightMm > flat.heightMm * 4 && r.widthMm < flat.widthMm / 3, 'vertical is tall and narrow');
+    if (o.shape === 'circle') assert.ok(r.heightMm > flat.heightMm * 1.3, 'circle bends the text');
+  }
+  const stam = await textToShapes('טלית', { font: 'stamashk', heightMm: 25 });
+  assert.equal(stam.shapes.length, 4);
+  // vertical stitches: every stitch of a forced 90° fill runs up/down
+  const box = [{ outer: [{ x: 0, y: 0 }, { x: 30, y: 0 }, { x: 30, y: 20 }, { x: 0, y: 20 }], holes: [], width: 20 }];
+  const cv = compileDesign([{ id: 'b', color: '#000', shapes: box, stitch: { kind: 'fill', angle: Math.PI / 2 } }]);
+  let sx = 0, sy = 0;
+  const pts = cv.blocks[0].points;
+  for (let i = 1; i < pts.length; i++) { if (pts[i].j) continue; const dx = Math.abs(pts[i].x - pts[i - 1].x), dy = Math.abs(pts[i].y - pts[i - 1].y); if (dx + dy > 1) { sx += dx; sy += dy; } }
+  assert.ok(sy > sx * 3, 'stitches run top to bottom (dy ' + sy.toFixed(0) + ' dx ' + sx.toFixed(0) + ')');
+});
+
 console.log(`\n${passed} tests passed`);
