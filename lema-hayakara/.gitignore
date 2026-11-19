@@ -3,6 +3,8 @@ dist/
 dist-electron/
 release/
 public/fonts/*.ttf
+public/fonts/*.otf
+public/fonts/culmus-*.txt
 public/models/
 public/ort/
 android/app/build/
