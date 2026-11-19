@@ -232,7 +232,7 @@ async function redigitize(keepColors = true) {
 }
 
 async function runAiBackground(kind) {
-  busy(true, 'הבינה המלאכותית מסירה את הרקע… (בטלפון זה יכול לקחת עד דקה)');
+  busy(true, kind === 'quality' ? 'הבינה המלאכותית מסירה את הרקע (פעמיים לדיוק)… בטלפון זה יכול לקחת עד 2 דקות' : 'הבינה המלאכותית מסירה את הרקע… (בטלפון זה יכול לקחת עד דקה)');
   try {
     const { img } = await dataUrlToImage(P.source.preview);
     const out = await call('removeBg', { img, kind }, [img.data.buffer]);
@@ -293,7 +293,8 @@ function imageSetupDialog(imp, photo) {
       <button data-a="none" class="${ai === 'none' ? 'on' : ''}">בלי</button>
       <button data-a="fast" class="${ai === 'fast' ? 'on' : ''}">מהיר</button>
       <button data-a="quality" class="${ai === 'quality' ? 'on' : ''}">איכותי</button>
-    </div><div class="hint">מזהה את האובייקט הראשי ומוריד את הרקע. עובד בלי אינטרנט.</div></div>
+      <button data-a="people" class="${ai === 'people' ? 'on' : ''}">אנשים</button>
+    </div><div class="hint">מזהה את האובייקט הראשי ומוריד את הרקע. עובד בלי אינטרנט. "אנשים" מיועד לתמונות של אנשים. אחרי זה אפשר לתקן ידנית ב"מחק / החזר".</div></div>
     <div class="modal-actions"><button class="btn" id="go">המשך ✓</button><button class="btn ghost" id="cancel">ביטול</button></div>`;
   modal(html(), (el, close) => {
     const bind = () => {
@@ -630,7 +631,7 @@ function panelImage(el) {
     <div class="grid2"><div class="field"><label>צבע החוט</label><span class="swatch" style="background:${o.lineColor || '#202020'}"><input type="color" id="lc" value="${o.lineColor || '#202020'}" /></span></div>
     <div class="field"><label class="switch">היפוך (לבד כהה)<input type="checkbox" id="inv" ${o.invert ? 'checked' : ''} /></label></div></div>`}
     <div class="field"><div class="label">הסרת רקע בבינה מלאכותית</div><div class="row">
-      <button class="btn secondary" id="aiq">✨ איכותי</button><button class="btn secondary" id="aif">⚡ מהיר</button>${s.aiImage ? '<button class="btn ghost" id="aio">↺ ביטול</button>' : ''}</div>
+      <button class="btn secondary" id="aim">🧑 אנשים</button><button class="btn secondary" id="aiq">✨ איכותי</button><button class="btn secondary" id="aif">⚡ מהיר</button>${s.aiImage ? '<button class="btn ghost" id="aio">↺ ביטול</button>' : ''}</div>
       <div class="hint">${s.aiImage ? 'הרקע הוסר ✓' : 'מזהה את האובייקט הראשי ומוריד את הרקע – בלי אינטרנט'}</div></div>
     <button class="btn secondary wide" id="cleanup" style="margin-bottom:10px">✏️ מחק / החזר חלקים בתמונה</button>
     <button class="btn wide" id="apply">🔄 המר מחדש</button>
@@ -647,6 +648,7 @@ function panelImage(el) {
   if ($('#inv', el)) $('#inv', el).onchange = (e) => (o.invert = e.target.checked);
   $('#aiq', el).onclick = async () => { await runAiBackground('quality'); await redigitize(); };
   $('#aif', el).onclick = async () => { await runAiBackground('fast'); await redigitize(); };
+  $('#aim', el).onclick = async () => { await runAiBackground('people'); await redigitize(); };
   if ($('#aio', el)) $('#aio', el).onclick = async () => { s.aiImage = null; s.aiCrop = null; o.ai = null; await redigitize(); };
   $('#apply', el).onclick = () => redigitize();
   $('#cleanup', el).onclick = () => imageCleanupDialog();

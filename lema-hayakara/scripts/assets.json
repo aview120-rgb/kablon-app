@@ -268,5 +268,10 @@
   "path": "public/models/u2netp.onnx",
   "url": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx",
   "sha256": "309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8"
+ },
+ {
+  "path": "public/models/u2net_human_seg.onnx",
+  "url": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net_human_seg.onnx",
+  "sha256": "01eb6a29a5c4d8edb30b56adad9bb3a2a0535338e480724a213e0acfd2d1c73c"
  }
 ]
