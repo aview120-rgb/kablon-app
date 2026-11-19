@@ -85,17 +85,23 @@ export class Preview {
       const dim = this.highlight != null && this.highlight !== bi;
       const passes = this.realistic && s > 1.2 ? [[lw * 1.25, shade(b.color, -0.35), 0], [lw, b.color, 0], [lw * 0.35, shade(b.color, 0.45), -lw * 0.18]] : [[lw, b.color, 0]];
       ctx.globalAlpha = dim ? 0.18 : 1;
-      for (const [width, col, off] of passes) {
-        ctx.beginPath();
-        ctx.strokeStyle = col;
-        ctx.lineWidth = width;
-        let pen = false;
-        for (let i = 0; i < n; i++) {
-          const x = b.xy[i * 2] * s + off, y = b.xy[i * 2 + 1] * s + off;
-          if (b.flags[i] & 1 || !pen) { ctx.moveTo(x, y); pen = true; }
-          else ctx.lineTo(x, y);
+      // draw in sewing order, in short chunks, so later stitches cover earlier ones
+      // (underlay stays under the satin, like on the real fabric)
+      const CH = 24;
+      for (let c0 = 0; c0 < n; c0 += CH) {
+        const c1 = Math.min(n, c0 + CH + 1);
+        for (const [width, col, off] of passes) {
+          ctx.beginPath();
+          ctx.strokeStyle = col;
+          ctx.lineWidth = width;
+          let pen = false;
+          for (let i = c0; i < c1; i++) {
+            const x = b.xy[i * 2] * s + off, y = b.xy[i * 2 + 1] * s + off;
+            if (b.flags[i] & 1 || !pen) { ctx.moveTo(x, y); pen = true; }
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
         }
-        ctx.stroke();
       }
       if (this.showJumps) {
         ctx.beginPath();

@@ -1,6 +1,7 @@
 // Stitch generation: tatami fill, satin, running stitch, underlay, travel.
 // Output: arrays of points {x, y, j?: true (jump), t?: true (trim before)} in mm.
 import { rotatePoint, pointInShape, offsetRing, ringArea, dist, ringLength } from './geom.js';
+import { satinShape } from './satin.js';
 
 export const DEFAULTS = {
   fillSpacing: 0.42,      // mm between fill rows
@@ -197,7 +198,7 @@ function segmentInside(a, b, shape, tol = 0) {
  * Order runs greedily (each may be reversed) and join them into one stitch
  * list with travel stitches inside the shape or jumps.
  */
-export function joinRuns(runs, start, shape, o) {
+export function joinRuns(runs, start, shape, o, allowReverse = true) {
   const left = runs.filter((r) => r.length);
   const out = [];
   let cur = start;
@@ -208,7 +209,7 @@ export function joinRuns(runs, start, shape, o) {
       const d0 = cur ? dist(cur, r[0]) : 0;
       const d1 = cur ? dist(cur, r[r.length - 1]) : Infinity;
       if (d0 < bd) { bd = d0; bi = i; rev = false; }
-      if (d1 < bd) { bd = d1; bi = i; rev = true; }
+      if (allowReverse && d1 < bd) { bd = d1; bi = i; rev = true; }
     }
     let r = left.splice(bi, 1)[0];
     if (rev) r = r.slice().reverse();
@@ -266,6 +267,51 @@ export function stitchShape(shape, opt, start) {
   let angle = o.angle;
   if (angle === undefined || angle === null) {
     angle = isSatin ? bestSatinAngle(shape, o) : Math.PI / 4;
+  }
+  if (isSatin && kind !== 'fill' && (o.angle === undefined || o.angle === null) && o.turning !== false) {
+    const sat = satinShape(shape, o);
+    if (sat) {
+      // all centre-line underlays first, then every satin column on top
+      if (sat.underlays.length) {
+        const ul = joinRuns(sat.underlays, pos, shape, o);
+        if (ul.length) {
+          if (pts.length) { const d = dist(pts[pts.length - 1], ul[0]); if (d > 1.2 && !segmentInside(pts[pts.length - 1], ul[0], shape)) ul[0] = { ...ul[0], j: true, t: d > o.trimDistance }; }
+          pts.push(...ul); pos = pts[pts.length - 1];
+        }
+      }
+      // leftover spots (serif balls, junction corners): small satin patches sewn first, so the columns cover their edges,
+      // laid in the direction that crosses them best so they blend into the stroke
+      const patches = [];
+      for (const g of sat.gaps) {
+        // a blob gets its own small turning-satin column; fall back to straight satin
+        const sub = g.width && g.width > 0.6 ? satinShape(g, { ...o, underlay: false, pullComp: 0.05 }) : null;
+        if (sub && sub.runs.length) patches.push(...sub.runs);
+        else patches.push(...fillShape(g, { ...o, mode: 'satin', angle: bestSatinAngle(g, o), spacing: o.satinSpacing, pullComp: 0.1 }));
+      }
+      if (patches.length) {
+        const gj = joinRuns(patches, pos, null, o);
+        if (gj.length) {
+          if (pos && pts.length) {
+            const d = dist(pos, gj[0]);
+            if (d > 1.2) {
+              if (segmentInside(pos, gj[0], shape)) pts.push(...runLine([pos, gj[0]], o.runLength).slice(1, -1));
+              else gj[0] = { ...gj[0], j: true, t: d > o.trimDistance };
+            }
+          }
+          pts.push(...gj); pos = pts[pts.length - 1];
+        }
+      }
+      const top = joinRuns(sat.runs, pos, shape, o);
+      if (pts.length && top.length) {
+        const d = dist(pts[pts.length - 1], top[0]);
+        if (d > 1.2) {
+          if (segmentInside(pts[pts.length - 1], top[0], shape)) pts.push(...runLine([pts[pts.length - 1], top[0]], o.runLength).slice(1, -1));
+          else top[0] = { ...top[0], j: true, t: d > o.trimDistance };
+        }
+      }
+      pts.push(...top);
+      return pts;
+    }
   }
   if (o.underlay && width > 1.4) {
     // edge-walk underlay just inside the outline

@@ -3,7 +3,7 @@ import { traceMask, distanceTransform, components } from './raster.js';
 import { ringsToShapes, simplifyRing, densifyRing, smoothRing, shapeArea, ringBounds, pointInShape } from './geom.js';
 
 /** Rasterise rings (mm) with the nonzero rule. Returns mask with origin (ox, oy) in mm. */
-export function rasterizeRings(rings, mmPerPx, padPx = 2) {
+export function rasterizeRings(rings, mmPerPx, padPx = 2, rule = 'nonzero') {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const r of rings) for (const p of r) { minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y); }
   const ox = minX - padPx * mmPerPx, oy = minY - padPx * mmPerPx;
@@ -26,8 +26,8 @@ export function rasterizeRings(rings, mmPerPx, padPx = 2) {
     xs.sort((p, q) => p[0] - q[0]);
     let wind = 0;
     for (let i = 0; i < xs.length - 1; i++) {
-      wind += xs[i][1];
-      if (wind !== 0) {
+      wind += rule === 'evenodd' ? 1 : xs[i][1];
+      if (rule === 'evenodd' ? wind % 2 === 1 : wind !== 0) {
         const x0 = Math.max(0, Math.ceil(xs[i][0] - 0.5)), x1 = Math.min(w - 1, Math.floor(xs[i + 1][0] - 0.5));
         for (let x = x0; x <= x1; x++) mask[y * w + x] = 1;
       }
