@@ -116,7 +116,7 @@ function smoothPts(pts, rad, closed) {
     let sx = 0, sy = 0, c = 0;
     for (let k = -rad; k <= rad; k++) {
       let j = i + k;
-      if (closed) j = (j + n) % n; else j = Math.max(0, Math.min(n - 1, j));
+      if (closed) j = ((j % n) + n) % n; else j = Math.max(0, Math.min(n - 1, j));
       sx += pts[j].x; sy += pts[j].y; c++;
     }
     out.push({ x: sx / c, y: sy / c });
@@ -239,7 +239,7 @@ export function satinShape(shape, o) {
     const left = [], right = [];
     for (let i = 0; i < n; i++) {
       const K = Math.max(3, Math.round((width * 0.55) / step));
-      const a = pts[p.closed ? (i - K + n * 4) % n : Math.max(0, i - K)];
+      const a = pts[p.closed ? (((i - K) % n) + n) % n : Math.max(0, i - K)];
       const b = pts[p.closed ? (i + K) % n : Math.min(n - 1, i + K)];
       let tx = b.x - a.x, ty = b.y - a.y;
       const L = Math.hypot(tx, ty) || 1; tx /= L; ty /= L;

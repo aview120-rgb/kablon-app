@@ -32,8 +32,10 @@
     "bidi-js": "^1.1.0",
     "electron-updater": "^6.8.11",
     "harfbuzzjs": "^1.6.4",
+    "heic2any": "^0.0.4",
     "onnxruntime-web": "^1.31.1",
-    "pdfjs-dist": "^4.10.38"
+    "pdfjs-dist": "^4.10.38",
+    "utif": "^3.1.0"
   },
   "type": "module",
   "productName": "LeImaHayakara",

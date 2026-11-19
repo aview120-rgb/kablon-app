@@ -261,6 +261,12 @@ export function stitchShape(shape, opt, start) {
   if (kind === 'run' || (kind === 'auto' && width < 0.9)) {
     const ring = pos ? startRingNear(shape.outer, pos) : shape.outer;
     const line = o.bean !== false ? beanLine(ring, Math.min(o.runLength, 2), true) : runLine(ring, o.runLength, true);
+    if (kind === 'run') {
+      for (const hole of shape.holes) {
+        const hl = o.bean !== false ? beanLine(startRingNear(hole, line[line.length - 1]), Math.min(o.runLength, 2), true) : runLine(startRingNear(hole, line[line.length - 1]), o.runLength, true);
+        if (hl.length) { hl[0] = { ...hl[0], j: true, t: dist(line[line.length - 1], hl[0]) > o.trimDistance }; line.push(...hl); }
+      }
+    }
     return line;
   }
   const isSatin = kind === 'satin' || (kind === 'auto' && width <= o.satinMax * 0.8);

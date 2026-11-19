@@ -66,7 +66,7 @@ export function renderWorksheet(compiled, { name, needles, hoopLabel, fabricLabe
     ctx.font = '24px Rubik, Arial, sans-serif';
     ctx.fillStyle = '#555';
     const n = blk.flags.reduce((s, f) => s + (f & 1 ? 0 : 1), 0);
-    ctx.fillText(`${n.toLocaleString('he-IL')} תפרים`, W - 370, y + 84);
+    ctx.fillText(`${n.toLocaleString('he-IL')} תפרים${blk.name && blk.name.startsWith('אפליקציה') ? ' · ' + blk.name : ''}`, W - 370, y + 84);
     ctx.direction = 'ltr'; ctx.textAlign = 'left';
     ctx.fillText(blk.color.toUpperCase(), 180, y + 84);
     ctx.direction = 'rtl'; ctx.textAlign = 'right';

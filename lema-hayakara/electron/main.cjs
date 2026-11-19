@@ -69,6 +69,12 @@ app.whenReady().then(() => {
     fs.writeFileSync(r.filePath, Buffer.from(bytes));
     return r.filePath;
   });
+  ipcMain.handle('lema:saveMany', async (_e, files) => {
+    const r = await dialog.showOpenDialog(win, { title: 'בחרו תיקייה לשמירת הקבצים', defaultPath: app.getPath('documents'), properties: ['openDirectory', 'createDirectory'] });
+    if (r.canceled || !r.filePaths[0]) return null;
+    for (const f of files) fs.writeFileSync(path.join(r.filePaths[0], path.basename(f.name)), Buffer.from(f.bytes));
+    return r.filePaths[0];
+  });
   ipcMain.handle('lema:checkUpdates', async () => {
     if (!updater || !app.isPackaged) return { available: false, version: app.getVersion() };
     const r = await updater.checkForUpdates();

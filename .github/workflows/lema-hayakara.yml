@@ -43,10 +43,12 @@ jobs:
       - run: npm ci
       - run: npm run assets
       - run: npm test
+      - name: Every font turns into stitches
+        run: node test/fonts.mjs
       - name: Validate embroidery files with an independent reader (pyembroidery)
         run: |
           pip install pyembroidery
-          python3 test/validate.py test/out/logo.dst test/out/logo.pes test/out/logo.jef test/out/logo.exp test/out/photo.dst
+          python3 test/validate.py test/out/logo.dst test/out/logo.pes test/out/logo.jef test/out/logo.exp test/out/photo.dst test/out/talit.dst
       - run: npm run build
 
   android:

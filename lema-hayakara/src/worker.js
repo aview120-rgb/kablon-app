@@ -3,9 +3,10 @@ import { digitizeImage, compileDesign, centerObjects, mergeSimilarColors } from 
 import { photoLines } from './engine/photo.js';
 import { setFontLoader, textToShapes } from './engine/text.js';
 import { removeBackground } from './engine/ai.js';
-import { readDST, readEXP } from './engine/formats.js';
+import { readDST, readEXP, readPES, readJEF } from './engine/formats.js';
 import { patternToObjects } from './engine/design.js';
 import { makeBackground } from './engine/background.js';
+import { libraryShapes, outlineBand } from './engine/library.js';
 
 const BASE = new URL('./', self.location.href.replace(/assets\/[^/]*$/, '')).href;
 const ROOT = (() => {
@@ -31,7 +32,7 @@ function packCompiled(comp) {
     const flags = new Uint8Array(b.points.length);
     b.points.forEach((p, i) => { xy[i * 2] = p.x; xy[i * 2 + 1] = p.y; flags[i] = (p.j ? 1 : 0) | (p.t ? 2 : 0); });
     transfer.push(xy.buffer, flags.buffer);
-    return { color: b.color, objectIds: b.objectIds, xy, flags };
+    return { color: b.color, objectIds: b.objectIds, xy, flags, name: b.name, forced: b.forced };
   });
   return { result: { blocks }, transfer };
 }
@@ -61,11 +62,17 @@ const handlers = {
     });
     return { result: res, transfer: [res.data.buffer] };
   },
+  async libShape({ id, widthMm }) {
+    return { result: libraryShapes(id, widthMm) };
+  },
+  async outline({ shapes, widthMm }) {
+    return { result: outlineBand(shapes, widthMm, 0.4) };
+  },
   async background({ objects, spec }) {
     return { result: makeBackground(objects, spec) };
   },
   async importFile({ bytes, ext, palette }) {
-    const pat = ext === 'exp' ? readEXP(bytes) : readDST(bytes);
+    const pat = ext === 'exp' ? readEXP(bytes) : ext === 'pes' || ext === 'pec' ? readPES(bytes) : ext === 'jef' ? readJEF(bytes) : readDST(bytes);
     const objects = centerObjects(patternToObjects(pat, palette));
     return { result: { objects, name: pat.name } };
   },

@@ -6,6 +6,7 @@ import {
 import { ringsToShapes, simplifyRing, densifyRing, smoothRing, shapeArea, ringBounds, transformShape, dist, pointInShape } from './geom.js';
 import { stitchShape, limitStitchLength, dropTiny, lockAt, DEFAULTS, runLine } from './stitch.js';
 import { STITCH, JUMP, TRIM, COLOR, END } from './formats.js';
+import { outlineBand, insetShapes } from './library.js';
 
 let uid = 1;
 export const newId = () => 'o' + uid++ + '_' + Math.random().toString(36).slice(2, 6);
@@ -211,7 +212,19 @@ export function compileDesign(objects, settings = {}) {
   if (settings.underlay != null) base.underlay = settings.underlay;
   const blocks = [];
   let pos = null;
+  // appliqué objects become three machine steps with stops between them
+  const expanded = [];
   for (const obj of objects) {
+    if (obj.visible === false) continue;
+    if (obj.applique && obj.shapes && obj.shapes.length) {
+      const bw = obj.applique.width || 3;
+      expanded.push({ ...obj, id: obj.id + '_place', name: 'אפליקציה 1: קו מיקום – הניחו את הבד', applique: null, forceNewBlock: true, stitch: { kind: 'run', bean: false } });
+      const tack = insetShapes(obj.shapes, Math.min(0.8, bw * 0.25));
+      expanded.push({ ...obj, id: obj.id + '_tack', name: 'אפליקציה 2: תפר הצמדה – אחר כך גזרו את עודפי הבד', shapes: tack.length ? tack : obj.shapes, applique: null, forceNewBlock: true, stitch: { kind: 'run', bean: true } });
+      expanded.push({ ...obj, id: obj.id + '_cover', name: 'אפליקציה 3: כיסוי סאטן', shapes: outlineBand(obj.shapes, bw, 0.62), applique: null, forceNewBlock: true, stitch: { kind: 'satin' } });
+    } else expanded.push(obj);
+  }
+  for (const obj of expanded) {
     if (obj.visible === false) continue;
     const o = { ...base, ...(obj.stitch || {}) };
     if (obj.stitch?.density) o.fillSpacing = base.fillSpacing / obj.stitch.density;
@@ -242,13 +255,13 @@ export function compileDesign(objects, settings = {}) {
     if (!obj.imported) pts = addLocks(dropTiny(pts, base.minStitch));
     pos = pts[pts.length - 1];
     const last = blocks[blocks.length - 1];
-    if (last && last.color.toLowerCase() === obj.color.toLowerCase()) {
+    if (last && !obj.forceNewBlock && !last.forced && last.color.toLowerCase() === obj.color.toLowerCase()) {
       if (pts[0] && last.points.length) pts[0] = { ...pts[0], j: true, t: dist(last.points[last.points.length - 1], pts[0]) > o.trimDistance };
       last.points.push(...pts);
       last.objectIds.push(obj.id);
     } else {
       pts[0] = { ...pts[0], j: true, t: false };
-      blocks.push({ color: obj.color, objectIds: [obj.id], points: pts, name: obj.name });
+      blocks.push({ color: obj.color, objectIds: [obj.id], points: pts, name: obj.name, forced: !!obj.forceNewBlock });
     }
   }
   // post-process each block: locks, length limits, tiny stitch removal
@@ -311,7 +324,7 @@ export function patternToObjects(pattern, palette) {
   let ci = 0;
   let pendingJump = false, pendingTrim = false;
   const flush = () => {
-    if (pts.length) objects.push({ id: newId(), type: 'stitches', name: 'צבע ' + (ci + 1), color: (pattern.colors?.[ci]) || palette[ci % palette.length], points: pts, visible: true });
+    if (pts.length) objects.push({ id: newId(), type: 'stitches', forceNewBlock: true, name: 'צבע ' + (ci + 1), color: (pattern.colors?.[ci]) || palette[ci % palette.length], points: pts, visible: true });
     pts = [];
   };
   for (const [x, y, c] of pattern.stitches) {

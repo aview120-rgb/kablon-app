@@ -388,3 +388,85 @@ export const FORMATS = {
   pes: { label: 'PES – Brother', write: writePES, ext: 'pes' },
   jef: { label: 'JEF – Janome', write: writeJEF, ext: 'jef' },
 };
+
+// ---------------- readers for Brother (PES/PEC) and Janome (JEF) ----------------
+function hexOf(c) { return '#' + c.toString(16).padStart(6, '0'); }
+
+export function readPEC(u, pos = 0) {
+  const st = [];
+  let x = 0, y = 0;
+  const colorChanges = u[pos + 48];
+  const count = colorChanges === 0xff ? 1 : colorChanges + 1;
+  const colors = [];
+  for (let i = 0; i < count; i++) colors.push(hexOf(PEC_THREADS[u[pos + 49 + i] % PEC_THREADS.length][0]));
+  let p = pos + 528;
+  const s12 = (v) => { v &= 0xfff; return v > 0x7ff ? v - 0x1000 : v; };
+  const s7 = (v) => (v > 63 ? v - 128 : v);
+  while (p + 1 < u.length) {
+    let v1 = u[p++], v2 = u[p++];
+    if (v1 === 0xff && v2 === 0x00) break;
+    if (v1 === 0xfe && v2 === 0xb0) { p++; st.push([x, y, COLOR]); continue; }
+    let jump = false, trim = false, dx, dy;
+    if (v1 & 0x80) {
+      if (v1 & 0x20) trim = true;
+      if (v1 & 0x10) jump = true;
+      dx = s12((v1 << 8) | v2);
+      v2 = u[p++];
+      if (v2 === undefined) break;
+    } else dx = s7(v1);
+    if (v2 & 0x80) {
+      if (v2 & 0x20) trim = true;
+      if (v2 & 0x10) jump = true;
+      const v3 = u[p++];
+      if (v3 === undefined) break;
+      dy = s12((v2 << 8) | v3);
+    } else dy = s7(v2);
+    x += dx; y += dy;
+    if (trim) { st.push([x - dx, y - dy, TRIM]); st.push([x, y, JUMP]); }
+    else if (jump) st.push([x, y, JUMP]);
+    else st.push([x, y, STITCH]);
+  }
+  st.push([x, y, END]);
+  let name = '';
+  for (let i = pos + 3; i < pos + 19; i++) name += String.fromCharCode(u[i]);
+  return { name: name.trim(), stitches: st, colors };
+}
+
+export function readPES(bytes) {
+  const u = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const sig = String.fromCharCode(...u.slice(0, 8));
+  if (sig === '#PEC0001') return readPEC(u, 8);
+  if (!sig.startsWith('#PES')) throw new Error('not a PES file');
+  const pecPos = u[8] | (u[9] << 8) | (u[10] << 16) | (u[11] << 24);
+  return readPEC(u, pecPos);
+}
+
+export function readJEF(bytes) {
+  const u = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const dv = new DataView(u.buffer, u.byteOffset, u.byteLength);
+  const stitchOffset = dv.getUint32(0, true);
+  const count = dv.getUint32(24, true);
+  const colors = [];
+  for (let i = 0; i < count && 116 + i * 4 + 4 <= u.length; i++) {
+    const idx = Math.abs(dv.getInt32(116 + i * 4, true));
+    const t = JEF_THREADS[idx % JEF_THREADS.length];
+    colors.push(hexOf(t ? t[0] : 0));
+  }
+  const s8 = (v) => (v > 127 ? v - 256 : v);
+  const st = [];
+  let x = 0, y = 0, p = stitchOffset;
+  while (p + 1 < u.length) {
+    const b0 = u[p], b1 = u[p + 1];
+    p += 2;
+    if (b0 !== 0x80) { x += s8(b0); y -= s8(b1); st.push([x, y, STITCH]); continue; }
+    const ctrl = b1;
+    if (p + 1 >= u.length) break;
+    const dx = s8(u[p]), dy = -s8(u[p + 1]);
+    p += 2;
+    if (ctrl === 0x02) { x += dx; y += dy; st.push([x, y, JUMP]); continue; }
+    if (ctrl === 0x01) { st.push([x, y, COLOR]); continue; }
+    break;
+  }
+  st.push([x, y, END]);
+  return { name: '', stitches: st, colors };
+}

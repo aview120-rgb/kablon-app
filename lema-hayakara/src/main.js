@@ -6,12 +6,13 @@ import { HOOPS, hoopById, HOOP_MARGIN } from './app/hoops.js';
 import { colorName } from './app/colornames.js';
 import { renderWorksheet } from './app/worksheet.js';
 import { importFile, dataUrlToImage } from './app/importer.js';
-import { saveFile, shareFile, canShare, checkForUpdate, installUpdate, onNativeUpdateEvent, APP_VERSION, platform } from './app/platform.js';
+import { saveFile, saveMany, shareFile, canShare, checkForUpdate, installUpdate, onNativeUpdateEvent, APP_VERSION, platform } from './app/platform.js';
 import { saveProject, getProject, listProjects, deleteProject } from './app/store.js';
 import { transformObjects, mergeSimilarColors, designBounds, FABRICS, toPattern, newId } from './engine/design.js';
 import { FORMATS } from './engine/formats.js';
-import { FONTS } from './engine/text.js';
+import { FONTS, FONT_CATS } from './engine/text.js';
 import { pointInShape } from './engine/geom.js';
+import { LIBRARY, librarySvgPath } from './engine/library.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -157,7 +158,7 @@ async function applyFix(fix) {
   else if (fix === 'fitHoop') { await scaleDesign(fitScaleForHoop()); toast('הגודל הותאם לחישוק'); return; }
   else if (fix === 'enlarge') { const b = designBounds(P.objects); await scaleDesign(30 / Math.max(b.w, b.h, 1)); return; }
   else if (fix === 'densityNormal') { P.settings.densityFactor = 1; }
-  else if (fix.startsWith('textMin:')) { const o = P.objects.find((x) => x.id === fix.slice(8)); if (o) { await regenerateText(o, { ...o.text, heightMm: 6 }); } }
+  else if (fix.startsWith('textMin:')) { const o = P.objects.find((x) => x.id === fix.slice(8)); if (o) { const h = o.text.heightMm || 6; pushUndo(); await regenerateText(o, { ...o.text, heightMm: h < 6 ? 6 : h * 1.4 }); } }
   else if (fix.startsWith('resetImportScale:')) { const o = P.objects.find((x) => x.id === fix.slice(17)); if (o && o.scaled) { const k = 1 / o.scaled; const [t] = transformObjects([o], { scale: k }); Object.assign(o, t, { scaled: 1 }); } }
   renderPanel();
   scheduleCompile(0);
@@ -333,7 +334,7 @@ async function openEmbroidery(imp) {
     const b = compiledBounds(compiled);
     const best = HOOPS.find((h) => !h.custom && !h.cap && h.w - 10 >= b.w && h.h - 10 >= b.h && (h.shape === 'rect' || Math.hypot(b.w, b.h) <= h.w - 10));
     if (best) { P.settings.hoop = best.id; scheduleCompile(0); }
-    toast('הקובץ נפתח. בקובץ DST אין צבעים – בחרו צבע לכל שלב בלשונית "צבעים".', 5000);
+    toast(imp.ext === 'dst' || imp.ext === 'exp' ? 'הקובץ נפתח. בקובץ ' + imp.ext.toUpperCase() + ' אין צבעים – בחרו צבע לכל שלב בלשונית "צבעים".' : 'הקובץ נפתח ✓', 5000);
   } catch (e) { toast('לא הצלחנו לפתוח את הקובץ: ' + e.message, 4500); show('home'); }
   finally { busy(false); }
 }
@@ -361,7 +362,7 @@ function startText() {
 async function regenerateText(obj, t) {
   busy(true, 'יוצר אותיות…');
   try {
-    const r = await call('text', { text: t.value, opts: { font: t.font, heightMm: t.heightMm, bold: t.bold, arc: t.arc, lineSpacing: t.lineSpacing || 1.15, letterSpacing: t.letterSpacing || 0 } });
+    const r = await call('text', { text: t.value, opts: { font: t.font, heightMm: t.heightMm, bold: t.bold, weight: t.weight, arc: t.arc, lineSpacing: t.lineSpacing || 1.15, letterSpacing: t.letterSpacing || 0 } });
     if (!r.shapes.length) { toast('לא נמצאו אותיות לרקמה'); return false; }
     // centre at target position
     const tmp = [{ id: 'x', shapes: r.shapes }];
@@ -381,6 +382,15 @@ async function regenerateText(obj, t) {
   finally { busy(false); }
 }
 
+const fontFaces = new Map();
+function loadFontFace(f) {
+  if (!f) return Promise.resolve('Rubik, sans-serif');
+  if (!fontFaces.has(f.file)) {
+    const fam = 'ff-' + f.file.replace(/[^A-Za-z0-9]/g, '');
+    fontFaces.set(f.file, new FontFace(fam, `url(./fonts/${f.file})`).load().then((ff) => { document.fonts.add(ff); return `'${fam}', Rubik, sans-serif`; }).catch(() => 'Rubik, sans-serif'));
+  }
+  return fontFaces.get(f.file);
+}
 function fontOptions(sel) {
   return FONTS.map((f) => `<option value="${f.id}" ${f.id === sel ? 'selected' : ''}>${esc(f.label)}</option>`).join('');
 }
@@ -391,29 +401,68 @@ function textDialog(existing) {
   modal(`
     <h2>${existing ? 'עריכת טקסט' : 'הוספת טקסט'}</h2>
     <div class="field"><label>הטקסט</label><textarea id="tv" placeholder="כתבו כאן… (Enter לשורה חדשה)">${esc(t.value)}</textarea><div class="hint">כל השפות: עברית, אנגלית, ערבית, רוסית, סינית, יפנית, הודית ועוד</div></div>
-    <div class="field"><label>גופן</label><select id="tf">${fontOptions(t.font)}</select><div class="font-sample" id="fs"></div></div>
+    <div class="field"><label>גופן: <b id="fontName"></b></label>
+      <input type="hidden" id="tf" value="${esc(t.font)}" />
+      <div class="seg" id="fLang" style="margin-bottom:8px"><button data-l="he">עברית</button><button data-l="en">English</button><button data-l="other">שפות נוספות</button></div>
+      <div class="chips" id="fCats"></div>
+      <div class="font-grid" id="fGrid"></div>
+      <div class="font-sample" id="fs"></div></div>
+    <div class="field"><label>עובי האותיות</label><div class="seg" id="tw">
+      <button data-w="400">רגיל</button><button data-w="600">בינוני</button><button data-w="700">עבה</button><button data-w="900">עבה מאוד</button></div>
+      <div class="hint" id="twHint"></div></div>
     <div class="grid2">
       <div class="field"><label>גובה האותיות (ס״מ)</label><input type="number" id="th" min="0.3" max="30" step="0.1" value="${(t.heightMm / 10).toFixed(1)}" /></div>
       <div class="field"><label>צבע</label><div class="row"><span class="swatch" style="background:${color}"><input type="color" id="tc" value="${color}" /></span><span id="tcn">${esc(colorName(color))}</span></div></div>
     </div>
-    <div class="field"><label class="switch">אותיות עבות (בולד)<input type="checkbox" id="tb" ${t.bold ? 'checked' : ''} /></label></div>
     <div class="field"><label>קשת: <b id="tav">${t.arc}°</b></label><input type="range" id="ta" dir="ltr" min="-270" max="270" step="5" value="${t.arc}" /><div class="hint">0 = ישר · ימינה = קשת למעלה · שמאלה = קשת למטה</div></div>
     <div class="field"><div class="label">סוג תפר</div><div class="seg" id="tk">
       <button data-k="auto" class="${t.kind === 'auto' ? 'on' : ''}">אוטומטי</button><button data-k="satin" class="${t.kind === 'satin' ? 'on' : ''}">סאטן</button><button data-k="fill" class="${t.kind === 'fill' ? 'on' : ''}">מילוי</button><button data-k="run" class="${t.kind === 'run' ? 'on' : ''}">קו</button>
     </div></div>
     <div class="modal-actions"><button class="btn" id="ok">${existing ? 'עדכון' : 'הוספה'} ✓</button><button class="btn ghost" id="no">ביטול</button></div>`, (el, close) => {
     const sample = () => { $('#fs', el).textContent = $('#tv', el).value.split('\n')[0] || 'לאמא היקרה'; };
-    const loadSampleFont = async () => {
-      const f = FONTS.find((x) => x.id === $('#tf', el).value);
-      if (!f) return;
-      try {
-        const ff = new FontFace('sample-' + f.id, `url(./fonts/${f.file})`);
-        document.fonts.add(await ff.load());
-        $('#fs', el).style.fontFamily = `'sample-${f.id}', Rubik, sans-serif`;
-      } catch { /* keep default */ }
+    let weight = t.weight || (FONTS.find((f) => f.id === t.font)?.weight) || (t.bold ? 700 : 400);
+    const curFont = () => FONTS.find((x) => x.id === $('#tf', el).value) || FONTS[0];
+    const updWeight = () => {
+      const f = curFont();
+      $$('#tw button', el).forEach((b) => { b.classList.toggle('on', +b.dataset.w === weight); b.disabled = !f.bold && +b.dataset.w !== 400; });
+      $('#twHint', el).textContent = f.bold ? 'עבה = רקמה מלאה ובולטת יותר. מומלץ לטקסט קטן.' : 'לגופן הזה יש עובי אחד בלבד.';
     };
-    $('#tf', el).onchange = loadSampleFont;
-    loadSampleFont();
+    $$('#tw button', el).forEach((b) => (b.onclick = () => { weight = +b.dataset.w; updWeight(); }));
+    const selectFont = (id) => {
+      $('#tf', el).value = id;
+      const f = curFont();
+      if (!f.bold) weight = 400; else if (f.weight) weight = f.weight;
+      $('#fontName', el).textContent = f.label;
+      $$('#fGrid .font-card', el).forEach((c) => c.classList.toggle('on', c.dataset.f === id));
+      loadFontFace(f).then((fam) => { $('#fs', el).style.fontFamily = fam; $('#fs', el).style.fontWeight = weight; });
+      updWeight();
+    };
+    let lang = (curFont().cat || 'he').startsWith('en') ? 'en' : curFont().cat === 'other' ? 'other' : 'he';
+    let cat = null;
+    const drawGrid = () => {
+      $$('#fLang button', el).forEach((b) => b.classList.toggle('on', b.dataset.l === lang));
+      const cats = FONT_CATS.filter((c) => c.lang === lang);
+      $('#fCats', el).innerHTML = `<button data-c="" class="${!cat ? 'on' : ''}">הכול</button>` + cats.map((c) => `<button data-c="${c.id}" class="${cat === c.id ? 'on' : ''}">${esc(c.label)}</button>`).join('');
+      $$('#fCats button', el).forEach((b) => (b.onclick = () => { cat = b.dataset.c || null; drawGrid(); }));
+      const list = FONTS.filter((f) => cats.some((c) => c.id === f.cat) && (!cat || f.cat === cat));
+      const sampleText = lang === 'he' ? 'שלום אמא' : lang === 'en' ? 'Hello Mom' : null;
+      $('#fGrid', el).innerHTML = list.map((f) => {
+        const txt = sampleText || (['naskh', 'cairo', 'amiri'].includes(f.id) ? 'مرحبا' : f.id === 'jp' ? 'こんにちは' : f.id === 'kr' ? '안녕하세요' : '你好');
+        return `<button class="font-card ${f.id === $('#tf', el).value ? 'on' : ''}" data-f="${f.id}"><span class="fc-sample" data-file="${f.file}" data-id="${f.id}">${esc(txt)}</span><small>${esc(f.label)}</small></button>`;
+      }).join('');
+      $$('#fGrid .font-card', el).forEach((c) => (c.onclick = () => selectFont(c.dataset.f)));
+      // load each sample font as it scrolls into view
+      const io = new IntersectionObserver((ents) => ents.forEach((e) => {
+        if (!e.isIntersecting) return;
+        io.unobserve(e.target);
+        const f = FONTS.find((x) => x.id === e.target.dataset.id);
+        loadFontFace(f).then((fam) => { e.target.style.fontFamily = fam; e.target.style.fontWeight = f.weight || 400; });
+      }), { root: $('#fGrid', el) });
+      $$('#fGrid .fc-sample', el).forEach((x) => io.observe(x));
+    };
+    $$('#fLang button', el).forEach((b) => (b.onclick = () => { lang = b.dataset.l; cat = null; drawGrid(); }));
+    drawGrid();
+    selectFont($('#tf', el).value);
     sample();
     $('#tv', el).oninput = sample;
     $('#tc', el).oninput = (e) => { color = e.target.value; e.target.parentElement.style.background = color; $('#tcn', el).textContent = colorName(color); };
@@ -423,7 +472,7 @@ function textDialog(existing) {
     $('#ok', el).onclick = async () => {
       const v = $('#tv', el).value.trim();
       if (!v) { toast('כתבו טקסט קודם'); return; }
-      Object.assign(t, { value: v, font: $('#tf', el).value, heightMm: Math.max(1, (+$('#th', el).value || 2) * 10), bold: $('#tb', el).checked, arc: +$('#ta', el).value });
+      Object.assign(t, { value: v, font: $('#tf', el).value, heightMm: Math.max(1, (+$('#th', el).value || 2) * 10), weight, bold: weight >= 700, arc: +$('#ta', el).value });
       close();
       if (!existing) {
         // place new text under the existing design
@@ -536,6 +585,7 @@ function panelColors(el) {
           <button class="mini" data-vis="${i}" aria-label="הסתר/הצג">${hidden ? '🙈' : '👁️'}</button>
           <button class="mini" data-hl="${i}" aria-label="הדגש">🔍</button>
           <button class="mini" data-del="${i}" aria-label="מחיקה">🗑️</button>
+          ${g.objs.some((o) => o.shapes) ? `<button class="mini ${g.objs.some((o) => o.applique) ? 'on' : ''}" data-appl="${i}" title="אפליקציה – הדבקת בד">✂️ אפליקציה</button><button class="mini" data-outl="${i}" title="הוספת קו מתאר">➰ קו מתאר</button>` : ''}
         </div></div>`;
     }).join('') || '<div class="empty">אין צבעים עדיין</div>'}
     <div class="row" style="margin-top:8px">
@@ -579,6 +629,14 @@ function panelColors(el) {
     preview.highlight = null;
     renderPanel(); scheduleCompile(0);
   }));
+  $$('[data-appl]', el).forEach((b) => (b.onclick = () => {
+    const g = groups[+b.dataset.appl];
+    const on = !g.objs.some((o) => o.applique);
+    g.objs.forEach((o) => { if (o.shapes) o.applique = on ? { width: 3 } : null; });
+    toast(on ? 'אפליקציה: המכונה תעצור פעמיים – להנחת הבד ולגזירת העודפים. ההוראות בדף ההוראות.' : 'האפליקציה בוטלה', 5000);
+    renderPanel(); scheduleCompile(0);
+  }));
+  $$('[data-outl]', el).forEach((b) => (b.onclick = () => addOutlineForColor(groups[+b.dataset.outl])));
   $('#merge', el).onclick = () => {
     const n = uniqueColors().length;
     if (n <= 1) return;
@@ -662,7 +720,9 @@ function panelText(el) {
     ${texts.map((o) => `<div class="card"><span class="needle-badge" style="background:${o.color}"></span><div class="grow"><b>${esc(o.text.value.replace(/\n/g, ' / '))}</b><br/><small>${esc((FONTS.find((f) => f.id === o.text.font) || {}).label || '')} · ${(o.text.heightMm / 10).toFixed(1)} ס״מ</small></div>
       <div class="btns"><button class="mini" data-edit="${o.id}">✏️ עריכה</button><button class="mini" data-mvu="${o.id}" aria-label="למעלה">⬆</button><button class="mini" data-mvd="${o.id}" aria-label="למטה">⬇</button><button class="mini" data-mvl="${o.id}" aria-label="שמאלה">⬅</button><button class="mini" data-mvr="${o.id}" aria-label="ימינה">➡</button><button class="mini" data-deltext="${o.id}">🗑️</button></div></div>`).join('') || '<div class="empty">עוד אין טקסטים בעיצוב.</div>'}
     </div><div class="hint">החצים מזיזים את הטקסט ב-2 מ״מ בכל לחיצה.</div>
+    ${shapesPanelHtml()}
     ${bgPanelHtml()}`;
+  bindShapesPanel(el);
   bindBgPanel(el);
   $('#addText', el).onclick = () => textDialog();
   const find = (id) => P.objects.find((o) => o.id === id);
@@ -802,7 +862,8 @@ function exportDialog() {
       ${Object.entries(FORMATS).map(([k, f]) => `<button data-f="${k}" class="${k === fmt ? 'on' : ''}"><b>${esc(f.label)}</b>${k === 'dst' ? '<small>מומלץ למכונת SWF ✓</small>' : ''}</button>`).join('')}
     </div></div>
     <div class="modal-actions" style="flex-wrap:wrap"><button class="btn" id="save">💾 שמירת קובץ</button>${canShare() ? '<button class="btn secondary" id="share">📤 שיתוף / שליחה</button>' : ''}</div>
-    <div class="modal-actions"><button class="btn secondary" id="sheet">📄 דף הוראות (מחטים וצבעים)</button><button class="btn ghost" id="close">סגירה</button></div>
+    <div class="modal-actions"><button class="btn secondary" id="sheet">📄 דף הוראות (מחטים וצבעים)</button><button class="btn secondary" id="names">📋 קובץ לכל שם</button></div>
+    <div class="modal-actions"><button class="btn ghost" id="close">סגירה</button></div>
     <div class="hint">להעברה למכונה: העתיקו את קובץ ה-DST לדיסק און קי (USB) והכניסו אותו למכונה. במכונה בחרו את הקובץ וכוונו את המחטים לפי דף ההוראות.</div>`, (el, close) => {
     $$('#fmts button', el).forEach((b) => (b.onclick = () => { fmt = b.dataset.f; $$('#fmts button', el).forEach((x) => x.classList.toggle('on', x === b)); }));
     const build = () => {
@@ -819,6 +880,7 @@ function exportDialog() {
     };
     if ($('#share', el)) $('#share', el).onclick = async () => { try { await shareFile(fname(), build()); } catch (e) { if (!/cancel/i.test(e.message)) toast('השיתוף נכשל: ' + e.message); } };
     $('#sheet', el).onclick = () => worksheetDialog();
+    $('#names', el).onclick = () => namesDialog();
     $('#close', el).onclick = close;
   });
 }
@@ -1198,6 +1260,116 @@ async function imageCleanupDialog() {
   });
 }
 function loadImageEl(url) { return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = url; }); }
+
+// ---------------- ready-made shapes ----------------
+function shapesPanelHtml() {
+  return `<div class="card" style="margin-top:14px"><b>צורות מוכנות</b>
+    <div class="hint">לבבות, כוכבים, מגן דוד, מסגרות, פרחים ועוד – לחצו כדי להוסיף.</div>
+    <div class="lib-grid">${LIBRARY.map((it) => `<button class="lib-item" data-lib="${it.id}" title="${esc(it.label)}"><svg viewBox="-4 -4 58 58"><path d="${librarySvgPath(it.id)}" fill="#7a2e5c" fill-rule="nonzero"/></svg><small>${esc(it.label)}</small></button>`).join('')}</div></div>`;
+}
+function bindShapesPanel(el) {
+  $$('[data-lib]', el).forEach((b) => (b.onclick = () => shapeDialog(b.dataset.lib)));
+}
+function shapeDialog(id) {
+  const item = LIBRARY.find((x) => x.id === id);
+  let color = '#b0306a', kind = 'auto';
+  modal(`<h2>הוספת ${esc(item.label)}</h2>
+    <div style="text-align:center"><svg viewBox="-4 -4 58 58" width="120" height="120"><path d="${librarySvgPath(id)}" fill="${color}" id="shPrev"/></svg></div>
+    <div class="grid2">
+      <div class="field"><label>רוחב (ס״מ)</label><input type="number" id="shW" min="0.5" max="35" step="0.5" value="5" /></div>
+      <div class="field"><label>צבע</label><span class="swatch" style="background:${color}"><input type="color" id="shC" value="${color}" /></span></div>
+    </div>
+    <div class="field"><div class="label">איך לרקום</div><div class="seg" id="shK">
+      <button data-k="auto" class="on">מלא</button><button data-k="outline">קו מתאר סאטן</button><button data-k="run">קו דק</button></div></div>
+    <div class="modal-actions"><button class="btn" id="shOk">הוספה ✓</button><button class="btn ghost" id="shNo">ביטול</button></div>`, (el, close) => {
+    $('#shC', el).oninput = (e) => { color = e.target.value; e.target.parentElement.style.background = color; $('#shPrev', el).setAttribute('fill', color); };
+    $$('#shK button', el).forEach((b) => (b.onclick = () => { kind = b.dataset.k; $$('#shK button', el).forEach((x) => x.classList.toggle('on', x === b)); }));
+    $('#shNo', el).onclick = close;
+    $('#shOk', el).onclick = async () => {
+      const w = Math.max(5, (+$('#shW', el).value || 5) * 10);
+      close();
+      busy(true, 'מוסיף צורה…');
+      try {
+        let shapes = await call('libShape', { id, widthMm: w });
+        if (kind === 'outline') shapes = await call('outline', { shapes, widthMm: Math.max(1.5, Math.min(4, w / 18)) });
+        // place it under the existing design (or in the centre when empty)
+        const b = designBounds(P.objects.filter((o) => !o.isBackground));
+        const sb = designBounds([{ shapes }]);
+        const dy = P.objects.length ? b.maxY + 4 - sb.minY : -(sb.minY + sb.maxY) / 2;
+        const dx = -(sb.minX + sb.maxX) / 2 + (P.objects.length ? (b.minX + b.maxX) / 2 : 0);
+        const obj = { id: newId(), type: 'region', name: item.label, color, shapes, stitch: { kind: kind === 'outline' ? 'satin' : kind }, visible: true };
+        translateObject(obj, dx, dy);
+        P.objects.push(obj);
+        if (P.background) await applyBackground(); else { renderPanel(); await runCompile(); }
+        if (compiled && fitScaleForHoop() < 1) toast('העיצוב גדול מהחישוק – לחצו "הקטן כדי שיתאים לחישוק" או גררו את הצורה', 4500);
+      } catch (e) { toast('שגיאה: ' + e.message, 4000); }
+      finally { busy(false); }
+    };
+  });
+}
+
+// ---------------- appliqué and outline per colour ----------------
+async function addOutlineForColor(g) {
+  const shapes = g.objs.filter((o) => o.shapes).flatMap((o) => o.shapes);
+  if (!shapes.length) { toast('אין כאן צורות שאפשר להוסיף להן קו מתאר'); return; }
+  busy(true, 'יוצר קו מתאר…');
+  try {
+    const band = await call('outline', { shapes, widthMm: 2.2 });
+    const lastIdx = Math.max(...g.objs.map((o) => P.objects.indexOf(o)));
+    P.objects.splice(lastIdx + 1, 0, { id: newId(), type: 'region', name: 'קו מתאר', color: '#1b1b1b', shapes: band, stitch: { kind: 'satin' }, visible: true });
+    renderPanel();
+    await runCompile();
+    toast('נוסף קו מתאר שחור – אפשר לשנות לו צבע ברשימה');
+  } catch (e) { toast('שגיאה: ' + e.message, 4000); }
+  finally { busy(false); }
+}
+
+// ---------------- many names → many files ----------------
+function namesDialog() {
+  const texts = P.objects.filter((o) => o.type === 'text');
+  if (!texts.length) { toast('הוסיפו קודם טקסט לעיצוב (למשל שם), ואז אפשר ליצור קובץ לכל שם ברשימה', 5000); return; }
+  modal(`<h2>קובץ לכל שם</h2>
+    <div class="hint">מעולה לחולצות של קבוצה, מגבות לילדים או מתנות: אותו עיצוב, ושם אחר בכל קובץ.</div>
+    ${texts.length > 1 ? `<div class="field"><label>איזה טקסט להחליף?</label><select id="nmT">${texts.map((t) => `<option value="${t.id}">${esc(t.text.value)}</option>`).join('')}</select></div>` : ''}
+    <div class="field"><label>שמות (שם בכל שורה)</label><textarea id="nmL" placeholder="דוד&#10;שרה&#10;Noa"></textarea></div>
+    <div class="field"><div class="label">פורמט</div><div class="seg" id="nmF">${Object.entries(FORMATS).map(([k], i) => `<button data-f="${k}" class="${i === 0 ? 'on' : ''}">${k.toUpperCase()}</button>`).join('')}</div></div>
+    <div class="modal-actions"><button class="btn" id="nmGo">💾 צור ושמור</button><button class="btn ghost" id="nmNo">ביטול</button></div>
+    <div class="hint" id="nmMsg"></div>`, (el, close) => {
+    let fmt = 'dst';
+    $$('#nmF button', el).forEach((b) => (b.onclick = () => { fmt = b.dataset.f; $$('#nmF button', el).forEach((x) => x.classList.toggle('on', x === b)); }));
+    $('#nmNo', el).onclick = close;
+    $('#nmGo', el).onclick = async () => {
+      const names = $('#nmL', el).value.split('\n').map((x) => x.trim()).filter(Boolean);
+      if (!names.length) { toast('כתבו לפחות שם אחד'); return; }
+      const target = $('#nmT', el) ? texts.find((t) => t.id === $('#nmT', el).value) : texts[0];
+      const files = [];
+      try {
+        for (let i = 0; i < names.length; i++) {
+          $('#nmMsg', el).textContent = `יוצר ${i + 1} מתוך ${names.length}: ${names[i]}…`;
+          const t = { ...target.text, value: names[i] };
+          const r = await call('text', { text: t.value, opts: { font: t.font, heightMm: t.heightMm, bold: t.bold, weight: t.weight, arc: t.arc, lineSpacing: t.lineSpacing || 1.15, letterSpacing: t.letterSpacing || 0 } });
+          const cb = designBounds([target]);
+          const nb = designBounds([{ shapes: r.shapes }]);
+          const dx = (cb.minX + cb.maxX) / 2 - (nb.minX + nb.maxX) / 2, dy = (cb.minY + cb.maxY) / 2 - (nb.minY + nb.maxY) / 2;
+          const replaced = { ...target, shapes: r.shapes };
+          translateObject(replaced, dx, dy);
+          let objs = P.objects.map((o) => (o === target ? replaced : o));
+          if (P.background && P.background.shape !== 'none') {
+            const bg = await call('background', { objects: objs.filter((o) => !o.isBackground), spec: P.background });
+            objs = [...bg, ...objs.filter((o) => !o.isBackground)];
+          }
+          const comp = await call('compile', { objects: objs.filter((o) => o.visible !== false), settings: P.settings });
+          const blocks = { blocks: comp.blocks.map((b) => { const pts = []; for (let k = 0; k < b.flags.length; k++) pts.push({ x: b.xy[k * 2], y: b.xy[k * 2 + 1], j: !!(b.flags[k] & 1), t: !!(b.flags[k] & 2) }); return { color: b.color, points: pts }; }) };
+          const pat = toPattern(blocks, { name: latinName(names[i]) });
+          pat.colors = comp.blocks.map((b) => b.color);
+          files.push({ name: `${String(i + 1).padStart(2, '0')}-${machineName(names[i]) === machineName('') ? 'name' + (i + 1) : machineName(names[i])}.${FORMATS[fmt].ext}`, bytes: FORMATS[fmt].write(pat) });
+        }
+        const r = await saveMany(files);
+        $('#nmMsg', el).textContent = r.ok ? `נשמרו ${files.length} קבצים ✓ ${r.where || ''}` : 'השמירה בוטלה';
+      } catch (e) { $('#nmMsg', el).textContent = 'שגיאה: ' + e.message; }
+    };
+  });
+}
 
 renderRecent();
 // expose for automated tests

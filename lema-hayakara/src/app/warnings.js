@@ -67,6 +67,11 @@ export function analyze({ compiled, objects, settings, hoop, uniqueColors }) {
       if (h && h < 4) out.push({ level: 'error', text: `הטקסט "${short(o.text.value)}" נמוך מדי (${h.toFixed(1)} מ״מ). מתחת ל-4 מ״מ האותיות לא ייקראו.`, fix: 'textMin:' + o.id, fixLabel: 'הגדל ל-6 מ״מ' });
       else if (h && h < 6) out.push({ level: 'warn', text: `הטקסט "${short(o.text.value)}" קטן (${h.toFixed(1)} מ״מ). מומלץ לפחות 6 מ״מ, ובגופן פשוט ועבה.`, fix: 'textMin:' + o.id, fixLabel: 'הגדל ל-6 מ״מ' });
     }
+    if (o.type === 'text' && o.shapes && o.shapes.length) {
+      const ws = o.shapes.map((sh) => sh.width || 0).filter((x) => x > 0).sort((a, b) => a - b);
+      const med = ws.length ? ws[Math.floor(ws.length / 2)] : 0;
+      if (med && med < 1.1) out.push({ level: 'warn', text: `הקווים של האותיות ב"${short(o.text?.value)}" דקים מאוד (${med.toFixed(1)} מ״מ) – הם ייתפרו כקו ולא כסאטן מלא. כדאי להגדיל, לבחור עובי "עבה" או גופן עבה יותר.`, fix: 'textMin:' + o.id, fixLabel: 'הגדל' });
+    }
     if (o.type === 'stitches' && o.imported && o.scaled && Math.abs(o.scaled - 1) > 0.2) {
       out.push({ level: 'warn', text: 'קובץ רקמה מוכן שונה בגודל ביותר מ-20%. הצפיפות משתנה – מומלץ לבדוק בתצוגה או לחזור לגודל המקורי.', fix: 'resetImportScale:' + o.id, fixLabel: 'חזור לגודל המקורי' });
     }

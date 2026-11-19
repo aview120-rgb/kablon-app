@@ -20,7 +20,7 @@
           <button class="big" data-start="image"><span class="ico">🖼️</span><b>תמונה / לוגו</b><small>JPG, PNG, PDF, SVG ועוד</small></button>
           <button class="big" data-start="photo"><span class="ico">🌄</span><b>תמונת צילום / נוף</b><small>אנשים, נופים, חיות</small></button>
           <button class="big" data-start="text"><span class="ico">✍️</span><b>טקסט</b><small>עברית, אנגלית וכל השפות</small></button>
-          <button class="big" data-start="open"><span class="ico">🧵</span><b>פתיחת קובץ רקמה</b><small>DST / EXP קיים</small></button>
+          <button class="big" data-start="open"><span class="ico">🧵</span><b>פתיחת קובץ רקמה</b><small>DST, PES, JEF, EXP</small></button>
         </div>
         <h2 class="section-title">העבודות שלי</h2>
         <div id="recent" class="recent"></div>
@@ -60,7 +60,7 @@
           <button data-tab="colors">🎨 צבעים</button>
           <button data-tab="stitch">🪡 תפרים</button>
           <button data-tab="image" id="tabImageBtn">🖼️ תמונה</button>
-          <button data-tab="text">✍️ טקסט</button>
+          <button data-tab="text">✍️ טקסט וצורות</button>
           <button data-tab="view">👁️ תצוגה</button>
         </nav>
         <div class="panel" id="panel"></div>
@@ -70,8 +70,8 @@
 
   <div class="modal" id="modal" hidden><div class="modal-card" role="dialog" aria-modal="true"><div id="modalBody"></div></div></div>
   <div class="toast" id="toast" hidden></div>
-  <input type="file" id="fileImage" accept="image/*,.pdf,.svg,application/pdf" hidden />
-  <input type="file" id="fileEmb" accept=".dst,.exp,.DST,.EXP" hidden />
+  <input type="file" id="fileImage" accept="image/*,.pdf,.svg,.heic,.heif,.tif,.tiff,application/pdf" hidden />
+  <input type="file" id="fileEmb" accept=".dst,.exp,.pes,.pec,.jef,.DST,.EXP,.PES,.JEF" hidden />
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

@@ -8,6 +8,10 @@ import { writeDST, writePES, writeJEF, writeEXP, readDST, readEXP, STITCH, COLOR
 import { setFontLoader, textToShapes } from '../src/engine/text.js';
 import { photoLines } from '../src/engine/photo.js';
 
+import { readPES, readJEF } from '../src/engine/formats.js';
+import { LIBRARY, libraryShapes, outlineBand } from '../src/engine/library.js';
+import { makeBackground } from '../src/engine/background.js';
+import { satinShape } from '../src/engine/satin.js';
 const OUT = fileURLToPath(new URL('./out/', import.meta.url));
 fs.mkdirSync(OUT, { recursive: true });
 setFontLoader(async (f) => fs.readFileSync(new URL('../public/fonts/' + f, import.meta.url)));
@@ -93,6 +97,59 @@ await test('merge colours to 12 needles and scaling', () => {
   assert.equal(new Set(m.map((o) => o.color)).size, 12);
   const b0 = designBounds(objs), b1 = designBounds(transformObjects(objs, { scale: 2 }));
   assert.ok(Math.abs(b1.w - b0.w * 2) < 1e-6);
+});
+
+
+// ---- new features ----
+
+await test('turning satin: one continuous column per stroke, full coverage', async () => {
+  const r = await textToShapes('ל', { font: 'rubik', heightMm: 25 });
+  const s = r.shapes[0];
+  const sat = satinShape(s, { satinSpacing: 0.4, pullComp: 0.2 });
+  assert.ok(sat && sat.runs.length >= 1 && sat.runs.length <= 3, 'columns ' + (sat && sat.runs.length));
+  const c = compileDesign([{ id: 't', color: '#000000', shapes: r.shapes, stitch: { kind: 'auto' } }]);
+  const st = designStats(c);
+  assert.ok(st.longest < 7.1, 'no over-long stitch');
+  assert.ok(st.stitches > 150, "stitches " + st.stitches);
+});
+
+await test('PES / JEF round trip keeps every colour step', () => {
+  const c = compileDesign(centerObjects(digitizeImage(logo(), { widthMm: 60, colors: 5 }).objects));
+  const pat = { ...toPattern(c), colors: c.blocks.map((b) => b.color) };
+  for (const [w, r] of [[writePES, readPES], [writeJEF, readJEF]]) {
+    const back = r(w(pat));
+    assert.equal(back.stitches.filter((s) => s[2] === COLOR).length, c.blocks.length - 1);
+    assert.ok(back.stitches.filter((s) => s[2] === STITCH).length > 1000);
+  }
+});
+
+await test('shapes library: every shape stitches', () => {
+  for (const it of LIBRARY) {
+    const sh = libraryShapes(it.id, 30);
+    assert.ok(sh.length >= 1, it.id);
+    const c = compileDesign([{ id: it.id, color: '#aa0000', shapes: sh, stitch: { kind: 'auto' } }]);
+    assert.ok(designStats(c).stitches > 100, it.id);
+  }
+});
+
+await test('appliqué makes three steps with stops, outline band has no stray frame', () => {
+  const sh = libraryShapes('heart', 60);
+  const c = compileDesign([{ id: 'a', color: '#2266aa', shapes: sh, applique: { width: 3 } }]);
+  assert.equal(c.blocks.length, 3);
+  const band = outlineBand(sh, 3, 0.6);
+  const b = designBounds([{ shapes: band }]);
+  const h = designBounds([{ shapes: sh }]);
+  assert.ok(b.w < h.w + 4, 'band hugs the heart (no frame around the image)');
+});
+
+await test('background with knock-out and border', async () => {
+  const r = await textToShapes('טלית', { font: 'frank', heightMm: 20, weight: 900 });
+  const t = { id: 't', color: '#1a2a6c', shapes: r.shapes, stitch: { kind: 'auto' } };
+  const bg = makeBackground([t], { shape: 'rect', margin: 6, color: '#d9c7a0', border: true, borderColor: '#1f5f8b', borderWidth: 3.5 });
+  assert.equal(bg.length, 2);
+  const c = compileDesign([...bg, t]);
+  assert.equal(c.blocks.length, 3);
+  fs.writeFileSync(OUT + 'talit.dst', writeDST(toPattern(c)));
 });
 
 console.log(`\n${passed} tests passed`);

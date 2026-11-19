@@ -151,3 +151,21 @@ input[type='range'] { width: 100%; accent-color: var(--brand); height: 32px; }
 .selbar button, .selbar .selcolor { border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 7px 10px; font-size: 0.9rem; color: var(--brand); font-weight: 600; position: relative; overflow: hidden; }
 .selbar .selcolor input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
 .selbar small { color: var(--muted); flex-basis: 100%; }
+
+.chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
+.chips button { flex: none; border: 1px solid var(--line); background: #fff; border-radius: 20px; padding: 6px 12px; font-size: 0.88rem; }
+.chips button.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+.font-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; max-height: 300px; overflow-y: auto; padding: 4px 2px; }
+@media (min-width: 560px) { .font-grid { grid-template-columns: repeat(3, 1fr); } }
+.font-card { background: #fff; border: 2px solid var(--line); border-radius: 12px; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 76px; }
+.font-card.on { border-color: var(--brand); background: var(--brand-soft); }
+.font-card .fc-sample { font-size: 1.45rem; line-height: 1.2; white-space: nowrap; overflow: hidden; max-width: 100%; }
+.font-card small { color: var(--muted); font-size: 0.75rem; text-align: center; }
+.seg button:disabled { opacity: 0.35; }
+
+.lib-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+@media (min-width: 560px) { .lib-grid { grid-template-columns: repeat(6, 1fr); } }
+.lib-item { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 6px 2px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.lib-item svg { width: 42px; height: 42px; }
+.lib-item small { font-size: 0.72rem; color: var(--muted); }
+.mini.on { background: var(--brand); color: #fff; }

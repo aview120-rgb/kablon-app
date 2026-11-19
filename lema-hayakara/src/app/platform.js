@@ -47,6 +47,17 @@ export async function saveFile(name, bytes, mime = 'application/octet-stream') {
   return { ok: true, where: 'הורדות' };
 }
 
+/** Save several files at once (one folder choice on Windows). */
+export async function saveMany(files) {
+  if (native && native.saveMany) {
+    const dir = await native.saveMany(files.map((f) => ({ name: f.name, bytes: f.bytes })));
+    return dir ? { ok: true, where: dir } : { ok: false };
+  }
+  let where = '';
+  for (const f of files) { const r = await saveFile(f.name, f.bytes); if (!r.ok) return r; where = r.where; }
+  return { ok: true, where: platform === 'android' ? `Documents/${SAVE_FOLDER}` : where };
+}
+
 async function shareUri(uri, title) {
   const { Share } = await import('@capacitor/share');
   await Share.share({ title, files: [uri], dialogTitle: 'שמירה / שליחה' });
