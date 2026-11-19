@@ -1,7 +1,7 @@
 // Stitch generation: tatami fill, satin, running stitch, underlay, travel.
 // Output: arrays of points {x, y, j?: true (jump), t?: true (trim before)} in mm.
 import { rotatePoint, pointInShape, offsetRing, ringArea, dist, ringLength } from './geom.js';
-import { satinShape } from './satin.js';
+import { satinShape, centerlines } from './satin.js';
 
 export const DEFAULTS = {
   fillSpacing: 0.42,      // mm between fill rows
@@ -258,6 +258,19 @@ export function stitchShape(shape, opt, start) {
   let pts = [];
   let pos = start;
   const kind = o.kind || 'auto';
+  if (kind === 'auto' && width < 0.9) {
+    // hairline strokes (thin script fonts, fine lines): one strong bean-stitch line
+    // along the middle of the stroke instead of a hollow outline
+    const lines = centerlines(shape);
+    if (lines.length) {
+      const runs = lines.map((l) => {
+        const out = [l[0]];
+        for (let i = 1; i < l.length; i++) out.push(l[i], l[i - 1], l[i]);
+        return out;
+      });
+      return joinRuns(runs, pos, o.travel === false ? null : shape, o);
+    }
+  }
   if (kind === 'run' || (kind === 'auto' && width < 0.9)) {
     const ring = pos ? startRingNear(shape.outer, pos) : shape.outer;
     const line = o.bean !== false ? beanLine(ring, Math.min(o.runLength, 2), true) : runLine(ring, o.runLength, true);
@@ -290,9 +303,20 @@ export function stitchShape(shape, opt, start) {
       const patches = [];
       for (const g of sat.gaps) {
         // a blob gets its own small turning-satin column; fall back to straight satin
-        const sub = g.width && g.width > 0.6 ? satinShape(g, { ...o, underlay: false, pullComp: 0.05 }) : null;
+        const sub = g.width && g.width > 2.2 ? satinShape(g, { ...o, underlay: false, pullComp: 0.05 }) : null;
         if (sub && sub.runs.length) patches.push(...sub.runs);
-        else patches.push(...fillShape(g, { ...o, mode: 'satin', angle: bestSatinAngle(g, o), spacing: o.satinSpacing, pullComp: 0.1 }));
+        else {
+          // lay the patch in the direction of the nearest satin column so it blends in
+          let ang = bestSatinAngle(g, o);
+          if (sat.dirs && sat.dirs.length) {
+            let cx = 0, cy = 0;
+            for (const q of g.outer) { cx += q.x; cy += q.y; }
+            cx /= g.outer.length; cy /= g.outer.length;
+            let bd = Infinity;
+            for (const d of sat.dirs) { const dd = (d.x - cx) ** 2 + (d.y - cy) ** 2; if (dd < bd) { bd = dd; ang = d.ang; } }
+          }
+          patches.push(...fillShape(g, { ...o, mode: 'satin', angle: ang, spacing: o.satinSpacing, pullComp: 0.1 }));
+        }
       }
       if (patches.length) {
         const gj = joinRuns(patches, pos, null, o);
@@ -336,7 +360,7 @@ export function stitchShape(shape, opt, start) {
     }
   }
   const runs = fillShape(shape, { ...o, angle, mode: isSatin ? 'auto' : 'tatami' });
-  const top = joinRuns(runs, pos, shape, o);
+  const top = joinRuns(runs, pos, o.travel === false ? null : shape, o);
   if (pts.length && top.length) {
     const d = dist(pts[pts.length - 1], top[0]);
     if (d > 1.2 && !segmentInside(pts[pts.length - 1], top[0], shape)) top[0] = { ...top[0], j: true, t: d > o.trimDistance };

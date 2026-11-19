@@ -265,8 +265,10 @@ export function satinShape(shape, o) {
   widths.sort((a, b) => a - b);
   const med = widths.length ? widths[Math.floor(widths.length / 2)] : width;
   const maxW = Math.min(Math.max(med * 2.3, med + 2), (o.satinMax || 7.5) * 1.15);
+  const dirs = [];
   for (const { pts, left, right } of cols) {
     const n = pts.length;
+    for (let i = 0; i < n; i += 3) dirs.push({ x: pts[i].x, y: pts[i].y, ang: Math.atan2(left[i].y - right[i].y, left[i].x - right[i].x) });
     let zig = [];
     const flush = () => { if (zig.length >= 4) runs.push(zig.map(({ x, y }) => ({ x, y }))); zig = []; };
     let prevOk = false;
@@ -312,5 +314,28 @@ export function satinShape(shape, o) {
   if (gapCount * res * res > 0.15) {
     gaps = shapesFromMask(gapMask, w, h, res, ox, oy, { smooth: 1, minAreaMm2: 0.9, simplify: 0.5 });
   }
-  return { runs, underlays, gaps };
+  return { runs, underlays, gaps, dirs };
+}
+
+/** Centre lines of a thin shape (for sewing hairline strokes as one bean-stitch line). */
+export function centerlines(shape) {
+  const width = shape.width || 0.8;
+  const res = Math.max(0.03, Math.min(0.06, width / 10));
+  const { mask, w, h, ox, oy } = rasterizeRings([shape.outer, ...shape.holes], res, 3, 'evenodd');
+  let count = 0;
+  for (let i = 0; i < mask.length; i++) count += mask[i];
+  if (count < 4) return [];
+  const skel = thin(mask, w, h);
+  const paths = branches(skel, w, h);
+  const toMm = (i) => ({ x: ox + ((i % w) + 0.5) * res, y: oy + (Math.floor(i / w) + 0.5) * res });
+  const out = [];
+  for (const p of paths) {
+    if (p.px.length < 3) continue;
+    let pts = p.px.map(toMm);
+    pts = smoothPts(pts, Math.max(1, Math.round(0.2 / res)), p.closed);
+    pts = resample(pts, 1.4, p.closed);
+    if (p.closed && pts.length > 2) pts.push({ ...pts[0] });
+    if (pts.length >= 2) out.push(pts);
+  }
+  return out;
 }

@@ -65,7 +65,7 @@ export function makeBackground(objects, spec) {
   const fillMask = new Uint8Array(w * h);
   for (let i = 0; i < mask.length; i++) fillMask[i] = mask[i] && (!bw || dt[i] * res > bw - 0.4) ? 1 : 0;
   const fillShapes = shapesFromMask(fillMask, w, h, res, ox, oy, { smooth: 1, minAreaMm2: 0.5, simplify: 0.6 });
-  out.push({ id: 'bg_fill', type: 'region', isBackground: true, name: 'רקע', color: spec.color || '#e8d9b5', shapes: fillShapes, stitch: { kind: 'fill', angle: spec.angle != null ? spec.angle : Math.PI / 2 }, visible: true });
+  out.push({ id: 'bg_fill', type: 'region', isBackground: true, name: 'רקע', color: spec.color || '#e8d9b5', shapes: fillShapes, stitch: { kind: 'fill', travel: false, angle: spec.angle != null ? spec.angle : Math.PI / 2 }, visible: true });
   if (bw) {
     const band = new Uint8Array(w * h);
     for (let i = 0; i < mask.length; i++) band[i] = dt[i] > 0 && dt[i] * res <= bw ? 1 : 0;
