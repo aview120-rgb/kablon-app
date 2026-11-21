@@ -6,6 +6,11 @@
   <meta name="theme-color" content="#7a2e5c" />
   <title>לאמא היקרה</title>
   <link rel="icon" href="./icon.png" />
+  <script>
+    // website only (GitHub Pages cannot send the COOP/COEP headers itself): a tiny service worker adds
+    // them, so the AI can use all processor cores. Not used inside the Android / Windows apps.
+    if (/\.github\.io$/.test(location.hostname)) { var coiTag = document.createElement('script'); coiTag.src = 'coi-serviceworker.js'; document.head.appendChild(coiTag); }
+  </script>
 </head>
 <body>
   <div id="app">

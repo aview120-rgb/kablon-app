@@ -94,6 +94,8 @@ function cmpVer(a, b) {
  */
 export async function checkForUpdate() {
   if (native) return native.checkUpdates();
+  // the website always serves the newest version – a reload is enough
+  if (platform === 'web') return { available: false, version: APP_VERSION, web: true };
   const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } });
   if (!r.ok) throw new Error('לא הצלחנו לבדוק עדכונים (אין אינטרנט?)');
   const rel = await r.json();

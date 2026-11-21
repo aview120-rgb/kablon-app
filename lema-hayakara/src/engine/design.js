@@ -1,6 +1,6 @@
 // Design model + image digitizing + compilation into a machine pattern.
 import {
-  quantize, modeFilter, removeSmallRegions, mergeThinRegions, components, traceMask, borderLabel,
+  quantize, modeFilter, despeckle, removeSmallRegions, mergeThinRegions, components, traceMask, borderLabel,
   labToRgb, rgbToHex, hexToRgb, rgbToLab, labDist, resizeImage, smoothImage, distanceTransform,
 } from './raster.js';
 import { ringsToShapes, simplifyRing, densifyRing, smoothRing, shapeArea, ringBounds, transformShape, dist, pointInShape } from './geom.js';
@@ -20,43 +20,54 @@ export function digitizeImage(img, opts = {}) {
     widthMm: 80, colors: 6, removeBackground: true, detail: 0.5, smooth: true, minAreaMm2: null,
     maxPixels: 640, ...opts,
   };
-  // working resolution: about 0.12-0.25 mm/pixel
+  // working resolution: logos get a finer grid (about 0.08-0.16 mm/pixel) so small text and
+  // hairlines survive; photos 0.12-0.25 mm/pixel
+  const logo = o.mode !== 'photo';
   const aspect = img.height / img.width;
   const heightMm = o.widthMm * aspect;
-  const targetPx = Math.min(o.maxPixels, Math.max(160, Math.round(o.widthMm / (0.25 - 0.13 * o.detail))));
-  let w = targetPx, h = Math.max(8, Math.round(targetPx * aspect));
-  if (h > o.maxPixels) { h = o.maxPixels; w = Math.max(8, Math.round(h / aspect)); }
+  const maxPx = logo ? Math.max(o.maxPixels, 1400) : o.maxPixels;
+  const mmPerPxWanted = logo ? 0.16 - 0.08 * o.detail : 0.25 - 0.13 * o.detail;
+  const targetPx = Math.min(maxPx, Math.max(160, Math.round(o.widthMm / mmPerPxWanted)));
+  // logos: never blur a sharp picture by shrinking it far below its own resolution
+  const tPx = logo ? Math.min(maxPx, Math.max(targetPx, Math.min(img.width, Math.round(o.widthMm / 0.08)))) : targetPx;
+  let w = tPx, h = Math.max(8, Math.round(tPx * aspect));
+  if (h > maxPx) { h = maxPx; w = Math.max(8, Math.round(h / aspect)); }
   let work = resizeImage(img, w, h);
-  if (o.smooth) work = smoothImage(work, o.mode === 'photo' ? 2 : 1, o.mode === 'photo' ? 14 : 22);
+  if (o.smooth) work = smoothImage(work, logo ? 1 : 2, logo ? 22 : 14);
   const mmPerPx = o.widthMm / w;
-  const { palette, labels: rawLabels } = quantize(work, Math.min(15, o.colors + (o.removeBackground ? 1 : 0)));
-  // drop tiny colour clusters (anti-aliased edges) and merge near-identical ones
-  const counts = new Map();
-  let opaqueCount = 0;
-  for (let i = 0; i < rawLabels.length; i++) if (rawLabels[i] >= 0) { counts.set(rawLabels[i], (counts.get(rawLabels[i]) || 0) + 1); opaqueCount++; }
-  const remap = new Map();
-  const keepL = [...counts.keys()].filter((l) => counts.get(l) / Math.max(1, opaqueCount) >= (o.mode === 'photo' ? 0.002 : 0.006));
-  const sortedKeep = keepL.sort((a, b) => counts.get(b) - counts.get(a));
-  const finalKeep = [];
-  for (const l of sortedKeep) {
-    const twin = finalKeep.find((k) => labDist(palette[k], palette[l]) < (o.mode === 'photo' ? 4 : 7));
-    if (twin !== undefined) remap.set(l, twin); else finalKeep.push(l);
+  const want = Math.min(15, o.colors + (o.removeBackground ? 1 : 0));
+  const { palette, labels: rawLabels } = logo ? logoPalette(work, w, h, want) : quantize(work, want);
+  if (!logo) {
+    // drop tiny colour clusters (noise) and merge near-identical ones
+    const counts = new Map();
+    let opaqueCount = 0;
+    for (let i = 0; i < rawLabels.length; i++) if (rawLabels[i] >= 0) { counts.set(rawLabels[i], (counts.get(rawLabels[i]) || 0) + 1); opaqueCount++; }
+    const remap = new Map();
+    const keepL = [...counts.keys()].filter((l) => counts.get(l) / Math.max(1, opaqueCount) >= 0.002);
+    const sortedKeep = keepL.sort((a, b) => counts.get(b) - counts.get(a));
+    const finalKeep = [];
+    for (const l of sortedKeep) {
+      const twin = finalKeep.find((k) => labDist(palette[k], palette[l]) < 4);
+      if (twin !== undefined) remap.set(l, twin); else finalKeep.push(l);
+    }
+    for (const l of counts.keys()) {
+      if (finalKeep.includes(l) || remap.has(l)) continue;
+      let best = finalKeep[0], bd = Infinity;
+      for (const k of finalKeep) { const d = labDist(palette[k], palette[l]); if (d < bd) { bd = d; best = k; } }
+      remap.set(l, best);
+    }
+    for (let i = 0; i < rawLabels.length; i++) if (remap.has(rawLabels[i])) rawLabels[i] = remap.get(rawLabels[i]);
   }
-  for (const l of counts.keys()) {
-    if (finalKeep.includes(l) || remap.has(l)) continue;
-    let best = finalKeep[0], bd = Infinity;
-    for (const k of finalKeep) { const d = labDist(palette[k], palette[l]); if (d < bd) { bd = d; best = k; } }
-    remap.set(l, best);
-  }
-  for (let i = 0; i < rawLabels.length; i++) if (remap.has(rawLabels[i])) rawLabels[i] = remap.get(rawLabels[i]);
-  let labels = modeFilter(rawLabels, w, h, o.mode === 'photo' ? 1 : 2);
-  const minArea = o.minAreaMm2 ?? (o.mode === 'photo' ? 1.2 : 0.6) * (1.2 - o.detail);
+  let labels = logo ? despeckle(rawLabels, w, h) : modeFilter(rawLabels, w, h, 1);
+  const minArea = o.minAreaMm2 ?? (o.mode === 'photo' ? 1.2 : 0.25) * (1.2 - o.detail);
   const minPx = Math.max(3, Math.round(minArea / (mmPerPx * mmPerPx)));
   labels = removeSmallRegions(labels, w, h, minPx);
   // thin slivers along colour borders (anti-aliasing, JPEG noise) are merged away;
   // in logo mode only very thin ones so real hairlines survive
-  const thinMm = o.mode === 'photo' ? 0.45 : 0.22;
-  labels = mergeThinRegions(labels, w, h, Math.max(1, thinMm / mmPerPx));
+  const thinMm = o.mode === 'photo' ? 0.45 : 0.15;
+  // logos: edge blends are already gone (logoPalette), so only tiny specks are merged – real thin
+  // strokes such as small letters are kept (they are sewn as a run line if too thin for satin)
+  labels = mergeThinRegions(labels, w, h, Math.max(1, thinMm / mmPerPx), logo ? { protect: (inf) => inf.size >= 14 } : {});
   labels = removeSmallRegions(labels, w, h, minPx);
 
   // merge palette entries that ended up visually identical
@@ -117,6 +128,253 @@ export function digitizeImage(img, opts = {}) {
     });
   }
   return { objects, widthMm: o.widthMm, heightMm, background: bgLabel !== null ? rgbToHex(...labToRgb(...palette[bgLabel])) : null };
+}
+
+/**
+ * Palette for logos: k-means with spare clusters, then
+ *  1. clusters that are only the blended edge between two other colours (anti-aliasing, JPEG halos)
+ *     are dissolved into those two colours – so they never steal a thread colour from real ones;
+ *  2. near-identical colours are merged;
+ *  3. if there are still more colours than wanted, the one whose loss changes the picture least
+ *     (pixels × colour distance) is merged first – a small but clearly different colour (a green leaf,
+ *     gold letters) is kept over a big shade that is almost the same as its neighbour.
+ */
+export function logoPalette(work, w, h, want) {
+  const K = Math.min(16, want + 5);
+  const { palette, labels } = quantize(work, K);
+  const N = w * h;
+  // small but clearly different colours (a green leaf, a red dot) can be missed by k-means –
+  // add them as extra colours so they are not swallowed by a big neighbour
+  {
+    const lab = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) { if (labels[i] < 0) continue; const k = i * 4; const L = rgbToLab(work.data[k], work.data[k + 1], work.data[k + 2]); lab[i * 3] = L[0]; lab[i * 3 + 1] = L[1]; lab[i * 3 + 2] = L[2]; }
+    const P3 = (i) => [lab[i * 3], lab[i * 3 + 1], lab[i * 3 + 2]];
+    let changed = false;
+    for (let round = 0; round < 4; round++) {
+      const out = [];
+      for (let i = 0; i < N; i++) {
+        if (labels[i] < 0) continue;
+        const P = P3(i);
+        let md = Infinity;
+        for (const C of palette) { const d = labDist(P, C); if (d < md) md = d; }
+        if (md > 28) out.push(i);
+      }
+      if (out.length < Math.max(25, N * 0.0004)) break;
+      const step = Math.max(1, Math.floor(out.length / 1500));
+      const smp = []; for (let j = 0; j < out.length; j += step) smp.push(P3(out[j]));
+      let best = null, bn = 0;
+      for (const a of smp) { let n = 0; for (const b of smp) if (labDist(a, b) < 14) n++; if (n > bn) { bn = n; best = a; } }
+      if (!best || bn * step < Math.max(25, N * 0.0004)) break;
+      const acc = [0, 0, 0]; let n = 0;
+      for (const b of smp) if (labDist(best, b) < 14) { acc[0] += b[0]; acc[1] += b[1]; acc[2] += b[2]; n++; }
+      palette.push([acc[0] / n, acc[1] / n, acc[2] / n]);
+      changed = true;
+    }
+    if (changed) for (let i = 0; i < N; i++) {
+      if (labels[i] < 0) continue;
+      const P = P3(i);
+      let b = 0, bd = Infinity;
+      for (let c = 0; c < palette.length; c++) { const d = labDist(P, palette[c]); if (d < bd) { bd = d; b = c; } }
+      labels[i] = b;
+    }
+  }
+  const alive = palette.map(() => true);
+  const count = () => { const c = new Float64Array(palette.length); for (let i = 0; i < N; i++) if (labels[i] >= 0) c[labels[i]]++; return c; };
+  let cnt = count();
+  palette.forEach((_, c) => { if (!cnt[c]) alive[c] = false; });
+  const reassign = (from, to) => { for (let i = 0; i < N; i++) if (labels[i] === from) labels[i] = to; alive[from] = false; };
+  // --- 1. blended edges
+  const adj = palette.map(() => new Float64Array(palette.length));
+  const edgeShare = new Float64Array(palette.length);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, l = labels[i];
+    if (l < 0) continue;
+    let boundary = false;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const X = x + dx, Y = y + dy;
+      if (X < 0 || Y < 0 || X >= w || Y >= h) continue;
+      const m = labels[Y * w + X];
+      if (m >= 0 && m !== l) { adj[l][m]++; boundary = true; }
+    }
+    if (boundary) edgeShare[l]++;
+  }
+  const between = (c, a, b) => {
+    const A = palette[a], B = palette[b], C = palette[c];
+    const ab = [B[0] - A[0], B[1] - A[1], B[2] - A[2]];
+    const L2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2;
+    if (L2 < 15 * 15) return null;
+    const t = ((C[0] - A[0]) * ab[0] + (C[1] - A[1]) * ab[1] + (C[2] - A[2]) * ab[2]) / L2;
+    if (t < 0.03 || t > 0.97) return null;
+    const off = Math.hypot(C[0] - A[0] - t * ab[0], C[1] - A[1] - t * ab[1], C[2] - A[2] - t * ab[2]);
+    return off < Math.max(6, Math.sqrt(L2) * 0.18) ? t : null;
+  };
+  // thinnest-looking clusters first
+  const order = palette.map((_, c) => c).filter((c) => alive[c]).sort((a, b) => edgeShare[b] / cnt[b] - edgeShare[a] / cnt[a]);
+  for (const c of order) {
+    if (!alive[c]) continue;
+    if (edgeShare[c] / cnt[c] < 0.55) continue; // has a real body of its own
+    let best = null;
+    for (let a = 0; a < palette.length; a++) for (let b = a + 1; b < palette.length; b++) {
+      if (!alive[a] || !alive[b] || a === c || b === c) continue;
+      if (adj[c][a] < cnt[c] * 0.05 || adj[c][b] < cnt[c] * 0.05) continue; // must sit between both
+      const t = between(c, a, b);
+      if (t !== null) { const sc = adj[c][a] + adj[c][b]; if (!best || sc > best.sc) best = { a, b, sc }; }
+    }
+    if (!best) continue;
+    // each blended pixel goes to one side by how far along the A→B blend it is; the smaller colour
+    // (thin letters, fine lines) gets the benefit of the doubt so thin strokes keep their full width
+    const [sm, bg] = cnt[best.a] <= cnt[best.b] ? [best.a, best.b] : [best.b, best.a];
+    const A = palette[bg], B = palette[sm];
+    const ab = [B[0] - A[0], B[1] - A[1], B[2] - A[2]];
+    const L2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2;
+    for (let i = 0; i < N; i++) if (labels[i] === c) {
+      const p = work.data, k = i * 4;
+      const lab = rgbToLab(p[k], p[k + 1], p[k + 2]);
+      const t = ((lab[0] - A[0]) * ab[0] + (lab[1] - A[1]) * ab[1] + (lab[2] - A[2]) * ab[2]) / L2;
+      labels[i] = t >= 0.35 ? sm : bg;
+    }
+    alive[c] = false;
+  }
+  cnt = count();
+  // --- 1b. single blended pixels: a pixel whose colour sits between two colours around it, while
+  // its own colour is rare around it (e.g. a gold-on-white letter edge that happens to look like the
+  // beige of a wall elsewhere), joins one of those two colours – thin letters stay in one piece
+  {
+    const R2 = 2;
+    const src = Int16Array.from(labels);
+    const cntW = new Map();
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x, l = src[i];
+      if (l < 0) continue;
+      cntW.clear();
+      let tot = 0;
+      for (let dy = -R2; dy <= R2; dy++) for (let dx = -R2; dx <= R2; dx++) {
+        const X = x + dx, Y = y + dy;
+        if (X < 0 || Y < 0 || X >= w || Y >= h) continue;
+        const m = src[Y * w + X];
+        if (m < 0) continue;
+        cntW.set(m, (cntW.get(m) || 0) + 1); tot++;
+      }
+      if ((cntW.get(l) || 0) > tot * 0.3 || cntW.size < 3) continue;
+      const k = i * 4, d = work.data;
+      const P = rgbToLab(d[k], d[k + 1], d[k + 2]);
+      let best = null;
+      const others = [...cntW.keys()].filter((m) => m !== l && alive[m] && cntW.get(m) >= 2);
+      for (let a = 0; a < others.length; a++) for (let b = a + 1; b < others.length; b++) {
+        const A = palette[others[a]], B = palette[others[b]];
+        const ab = [B[0] - A[0], B[1] - A[1], B[2] - A[2]];
+        const L2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2;
+        if (L2 < 20 * 20) continue;
+        const t = ((P[0] - A[0]) * ab[0] + (P[1] - A[1]) * ab[1] + (P[2] - A[2]) * ab[2]) / L2;
+        if (t < 0.05 || t > 0.95) continue;
+        const off = Math.hypot(P[0] - A[0] - t * ab[0], P[1] - A[1] - t * ab[1], P[2] - A[2] - t * ab[2]);
+        if (off > Math.max(6, Math.sqrt(L2) * 0.15)) continue;
+        if (!best || off < best.off) best = { a: others[a], b: others[b], t, off };
+      }
+      if (!best) continue;
+      // lean towards the less common colour of the two (the thin detail)
+      const aSmall = cnt[best.a] <= cnt[best.b];
+      labels[i] = aSmall ? (best.t <= 0.65 ? best.a : best.b) : (best.t >= 0.35 ? best.b : best.a);
+    }
+  }
+  // --- 2. near-identical colours
+  cnt = count();
+  for (;;) {
+    let pair = null;
+    for (let a = 0; a < palette.length; a++) for (let b = a + 1; b < palette.length; b++) {
+      if (!alive[a] || !alive[b]) continue;
+      const d = labDist(palette[a], palette[b]);
+      if (d < 12 && (!pair || d < pair.d)) pair = { a, b, d };
+    }
+    if (!pair) break;
+    const [big, small] = cnt[pair.a] >= cnt[pair.b] ? [pair.a, pair.b] : [pair.b, pair.a];
+    reassign(small, big); cnt = count();
+  }
+  // --- 3. down to the wanted number of colours
+  for (;;) {
+    const live = palette.map((_, c) => c).filter((c) => alive[c]);
+    if (live.length <= want) break;
+    let best = null;
+    for (const c of live) {
+      let near = null, nd = Infinity;
+      for (const d of live) if (d !== c) { const dd = labDist(palette[c], palette[d]); if (dd < nd) { nd = dd; near = d; } }
+      const cost = cnt[c] * nd * nd;
+      if (!best || cost < best.cost) best = { c, near, cost };
+    }
+    reassign(best.c, best.near); cnt = count();
+  }
+  // --- 4. thin pieces in one colour: a letter or hairline on the background often comes out as a mix
+  // of its real colour and lighter edge shades; every thin piece takes the colour that stands out most
+  // from the background (and covers a real share of it) so it is sewn in one thread and in one piece
+  unifyThinPieces(labels, w, h, palette, work, alive);
+  return { palette, labels };
+}
+
+function unifyThinPieces(labels, w, h, palette, work, alive) {
+  const N = w * h;
+  // background = most common colour on the border
+  const bc = new Map();
+  for (let x = 0; x < w; x++) for (const y of [0, h - 1]) { const l = labels[y * w + x]; bc.set(l, (bc.get(l) || 0) + 1); }
+  for (let y = 0; y < h; y++) for (const x of [0, w - 1]) { const l = labels[y * w + x]; bc.set(l, (bc.get(l) || 0) + 1); }
+  let bg = null, bn = 0;
+  for (const [l, n] of bc) if (n > bn) { bn = n; bg = l; }
+  if (bg === null || bg < 0 || bn < (2 * (w + h)) * 0.5) return;
+  const fg = new Uint8Array(N);
+  for (let i = 0; i < N; i++) fg[i] = labels[i] >= 0 && labels[i] !== bg ? 1 : 0;
+  const dt = distanceTransform(fg, w, h);
+  const comp = new Int32Array(N).fill(-1);
+  const stack = [];
+  let id = 0;
+  for (let s0 = 0; s0 < N; s0++) {
+    if (!fg[s0] || comp[s0] >= 0) continue;
+    const px = [];
+    comp[s0] = id; stack.push(s0);
+    let maxD = 0;
+    while (stack.length) {
+      const i = stack.pop(); px.push(i);
+      if (dt[i] > maxD) maxD = dt[i];
+      const x = i % w, y = (i - x) / w;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const X = x + dx, Y = y + dy;
+        if (X < 0 || Y < 0 || X >= w || Y >= h) continue;
+        const j = Y * w + X;
+        if (fg[j] && comp[j] < 0) { comp[j] = id; stack.push(j); }
+      }
+    }
+    id++;
+    if (maxD > 2.6) continue; // has a real body – leave its colours alone
+    const score = new Map();
+    for (const i of px) { const l = labels[i]; score.set(l, (score.get(l) || 0) + 1); }
+    if (score.size < 2) continue;
+    // the "ink": thin strokes are always lighter than their real colour (they blend with the
+    // background), so the pixels lie on the line from the background towards it. Take the farthest
+    // palette colour that the pixels really point at (they fit the line and reach well along it).
+    const B = palette[bg];
+    const labs = px.map((i) => { const k = i * 4; return rgbToLab(work.data[k], work.data[k + 1], work.data[k + 2]); });
+    let best = null, bd = -1;
+    for (let l = 0; l < palette.length; l++) {
+      if (l === bg || !alive[l]) continue;
+      const C = palette[l];
+      const ab = [C[0] - B[0], C[1] - B[1], C[2] - B[2]];
+      const L2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2;
+      if (L2 < 100) continue;
+      const ts = [];
+      let offSum = 0;
+      for (const P of labs) {
+        const t = ((P[0] - B[0]) * ab[0] + (P[1] - B[1]) * ab[1] + (P[2] - B[2]) * ab[2]) / L2;
+        const tc = Math.max(0, Math.min(1, t));
+        offSum += Math.hypot(P[0] - B[0] - tc * ab[0], P[1] - B[1] - tc * ab[1], P[2] - B[2] - tc * ab[2]);
+        ts.push(t);
+      }
+      ts.sort((x, y) => x - y);
+      const t90 = ts[Math.floor(ts.length * 0.9)];
+      if (offSum / labs.length > 9 || t90 < 0.62) continue;
+      const d = Math.sqrt(L2);
+      if (d > bd) { bd = d; best = l; }
+    }
+    if (best === null) continue;
+    for (const i of px) labels[i] = best;
+  }
 }
 
 // Merge colours that are closer than `threshold` (Lab ΔE) – used for the 12-needle limit.

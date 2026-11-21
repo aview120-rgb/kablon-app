@@ -1,10 +1,11 @@
-// On-device AI background removal (ISNet / U2-Net via onnxruntime-web).
+// On-device AI background removal (RMBG-1.4 / U2-Net via onnxruntime-web).
 // Everything runs locally – no network is used.
 let ortPromise = null;
 const sessions = new Map();
 
 export const AI_MODELS = {
-  quality: { file: 'isnet-general-use.onnx', size: 1024, mean: [0.5, 0.5, 0.5], std: [1, 1, 1], tta: true, label: 'איכות גבוהה (איטי יותר)' },
+  // RMBG-1.4 (BRIA, 8-bit): clearly better edges than ISNet in our tests, a quarter of the size; free for non-commercial use
+  quality: { file: 'rmbg-1.4-q.onnx', size: 1024, mean: [0.5, 0.5, 0.5], std: [1, 1, 1], tta: true, label: 'הכי מדויק' },
   people: { file: 'u2net_human_seg.onnx', size: 320, mean: [0.485, 0.456, 0.406], std: [0.229, 0.224, 0.225], tta: true, label: 'אנשים' },
   fast: { file: 'u2netp.onnx', size: 320, mean: [0.485, 0.456, 0.406], std: [0.229, 0.224, 0.225], label: 'מהיר' },
 };
@@ -41,7 +42,7 @@ async function getSession(kind, base, onProgress) {
  * Remove the background of an image (ImageData-like). Returns a new image with alpha.
  * base: URL prefix where /models and /ort live.
  */
-export async function removeBackground(img, { kind = 'quality', base = './', onProgress, threshold = 0.5 } = {}) {
+export async function removeBackground(img, { kind = 'quality', base = './', onProgress, threshold = 0.5, keepDetails = false } = {}) {
   const m = AI_MODELS[kind];
   const ort = await getOrt(base);
   const session = await getSession(kind, base, onProgress);
@@ -100,7 +101,31 @@ export async function removeBackground(img, { kind = 'quality', base = './', onP
       res.data[o] = Math.min(res.data[o], a >= threshold ? 255 : 0);
     }
   }
+  if (keepDetails) restoreDetails(img, res);
   return res;
+}
+
+// Logos: AI models look for "the object" and often drop words, thin lines and small emblems.
+// When the picture has a plain background, the AI cut is undone (see below).
+export function restoreDetails(img, res) {
+  const { width: w, height: h, data } = img;
+  const border = [];
+  const push = (x, y) => { const o = (y * w + x) * 4; if (data[o + 3] > 128) border.push([data[o], data[o + 1], data[o + 2]]); };
+  for (let x = 0; x < w; x += 2) { push(x, 0); push(x, h - 1); }
+  for (let y = 0; y < h; y += 2) { push(0, y); push(w - 1, y); }
+  if (border.length < 8) return 0;
+  const med = [0, 1, 2].map((c) => border.map((b) => b[c]).sort((a, b) => a - b)[border.length >> 1]);
+  const near = border.filter((b) => Math.hypot(b[0] - med[0], b[1] - med[1], b[2] - med[2]) < 30).length;
+  if (near < border.length * 0.85) return 0; // busy background (a photo) – trust the AI
+  // plain background: the logo is exactly "everything that is not the background colour". The AI is not
+  // needed here and tends to drop words, so the picture is kept whole; the logo converter then removes the
+  // plain background itself (and keeps every word, line and gap between stones right).
+  let restored = 0;
+  for (let i = 0; i < w * h; i++) {
+    const o = i * 4;
+    if (res.data[o + 3] !== data[o + 3]) { res.data[o + 3] = data[o + 3]; restored++; }
+  }
+  return restored;
 }
 
 // Keep the main object(s), drop specks and fill small holes in the AI mask (in place).

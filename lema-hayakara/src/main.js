@@ -237,7 +237,7 @@ async function runAiBackground(kind) {
   busy(true, kind === 'quality' ? 'הבינה המלאכותית מסירה את הרקע (פעמיים לדיוק)… בטלפון זה יכול לקחת עד 2 דקות' : 'הבינה המלאכותית מסירה את הרקע… (בטלפון זה יכול לקחת עד דקה)');
   try {
     const { img } = await dataUrlToImage(P.source.preview);
-    const out = await call('removeBg', { img, kind }, [img.data.buffer]);
+    const out = await call('removeBg', { img, kind, keepDetails: P.source.mode !== 'photo' && P.source.mode !== 'lines' }, [img.data.buffer]);
     // crop to the object so the chosen size refers to the object, not the old background
     let x0 = out.width, y0 = out.height, x1 = -1, y1 = -1;
     for (let y = 0; y < out.height; y++) for (let x = 0; x < out.width; x++) {
@@ -294,7 +294,7 @@ function imageSetupDialog(imp, photo) {
     <div class="field"><div class="label">הסרת רקע בבינה מלאכותית</div><div class="seg" id="aiSeg">
       <button data-a="none" class="${ai === 'none' ? 'on' : ''}">בלי</button>
       <button data-a="fast" class="${ai === 'fast' ? 'on' : ''}">מהיר</button>
-      <button data-a="quality" class="${ai === 'quality' ? 'on' : ''}">איכותי</button>
+      <button data-a="quality" class="${ai === 'quality' ? 'on' : ''}">הכי מדויק</button>
       <button data-a="people" class="${ai === 'people' ? 'on' : ''}">אנשים</button>
     </div><div class="hint">מזהה את האובייקט הראשי ומוריד את הרקע. עובד בלי אינטרנט. "אנשים" מיועד לתמונות של אנשים. אחרי זה אפשר לתקן ידנית ב"מחק / החזר".</div></div>
     <div class="modal-actions"><button class="btn" id="go">המשך ✓</button><button class="btn ghost" id="cancel">ביטול</button></div>`;
@@ -845,7 +845,7 @@ function panelImage(el) {
     <div class="grid2"><div class="field"><label>צבע החוט</label><span class="swatch" style="background:${o.lineColor || '#202020'}"><input type="color" id="lc" value="${o.lineColor || '#202020'}" /></span></div>
     <div class="field"><label class="switch">היפוך (לבד כהה)<input type="checkbox" id="inv" ${o.invert ? 'checked' : ''} /></label></div></div>`}
     <div class="field"><div class="label">הסרת רקע בבינה מלאכותית</div><div class="row">
-      <button class="btn secondary" id="aim">🧑 אנשים</button><button class="btn secondary" id="aiq">✨ איכותי</button><button class="btn secondary" id="aif">⚡ מהיר</button>${s.aiImage ? '<button class="btn ghost" id="aio">↺ ביטול</button>' : ''}</div>
+      <button class="btn secondary" id="aim">🧑 אנשים</button><button class="btn secondary" id="aiq">✨ הכי מדויק</button><button class="btn secondary" id="aif">⚡ מהיר</button>${s.aiImage ? '<button class="btn ghost" id="aio">↺ ביטול</button>' : ''}</div>
       <div class="hint">${s.aiImage ? 'הרקע הוסר ✓' : 'מזהה את האובייקט הראשי ומוריד את הרקע – בלי אינטרנט'}</div></div>
     <button class="btn secondary wide" id="cleanup" style="margin-bottom:10px">✏️ מחק / החזר חלקים בתמונה</button>
     <button class="btn wide" id="apply">🔄 המר מחדש</button>
@@ -1123,6 +1123,7 @@ $('#btnSettings').onclick = () => {
       msg.textContent = 'בודק…';
       try {
         const info = await checkForUpdate();
+        if (info.web) { msg.textContent = 'באתר תמיד פתוחה הגרסה הכי חדשה – פשוט רעננו את הדף ✓'; return; }
         if (!info.available) { msg.textContent = `יש לכם את הגרסה הכי חדשה (${APP_VERSION}) ✓`; return; }
         msg.innerHTML = `יש גרסה חדשה: <b>${esc(info.version)}</b>. <button class="btn" id="inst" style="margin-top:8px">התקנת העדכון</button>`;
         $('#inst', el).onclick = () => installUpdate(info);
@@ -1137,17 +1138,19 @@ onNativeUpdateEvent((ev) => {
   }
 });
 
-// Android: quiet update check once a day
-(async () => {
+// Android: look for a new version every time the app is opened (and when it comes back to the front)
+async function androidUpdateCheck() {
   if (platform !== 'android') return;
   try {
     const last = +localStorage.getItem('lastUpdCheck') || 0;
-    if (Date.now() - last < 864e5) return;
+    if (Date.now() - last < 10 * 60e3) return; // not more than once in 10 minutes
     localStorage.setItem('lastUpdCheck', String(Date.now()));
     const info = await checkForUpdate();
     if (info.available && (await confirmBox(`יש גרסה חדשה של האפליקציה (${info.version}). להוריד ולהתקין?`, 'כן, עדכן'))) installUpdate(info);
   } catch { /* offline */ }
-})();
+}
+androidUpdateCheck();
+if (platform === 'android') import('@capacitor/app').then(({ App }) => App.addListener('resume', androidUpdateCheck));
 
 if (platform === 'android') $('#fileEmb').setAttribute('accept', '*/*');
 // Android hardware back button

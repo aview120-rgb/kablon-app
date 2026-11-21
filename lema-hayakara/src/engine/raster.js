@@ -183,6 +183,26 @@ export function quantize(img, k, { fixedPalette = null, seed = 7 } = {}) {
   return { palette: centers, labels };
 }
 
+// Gentle clean-up for logos: only a pixel with no same-colour neighbour at all (a lone speck) changes,
+// so 1-2 pixel strokes of small letters stay intact.
+export function despeckle(labels, w, h) {
+  const out = new Int16Array(labels);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, l = labels[i];
+    let same = 0;
+    const votes = new Map();
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      const X = x + dx, Y = y + dy;
+      if (X < 0 || Y < 0 || X >= w || Y >= h) continue;
+      const m = labels[Y * w + X];
+      if (m === l) same++; else votes.set(m, (votes.get(m) || 0) + 1);
+    }
+    if (same === 0 && votes.size) { let best = l, bc = -1; for (const [m, n] of votes) if (n > bc) { bc = n; best = m; } out[i] = best; }
+  }
+  return out;
+}
+
 // Majority (mode) filter on labels – removes jagged single pixels on edges.
 export function modeFilter(labels, w, h, iterations = 1) {
   let cur = labels;

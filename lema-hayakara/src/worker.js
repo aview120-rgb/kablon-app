@@ -58,9 +58,9 @@ const handlers = {
   async compile({ objects, settings }) {
     return packCompiled(compileDesign(objects, settings));
   },
-  async removeBg({ img, kind }) {
+  async removeBg({ img, kind, keepDetails }) {
     const res = await removeBackground(img, {
-      kind, base: ROOT,
+      kind, base: ROOT, keepDetails: !!keepDetails,
       onProgress: (msg) => self.postMessage({ progress: msg }),
     });
     return { result: res, transfer: [res.data.buffer] };

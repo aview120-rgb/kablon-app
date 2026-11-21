@@ -12,6 +12,7 @@ import { readPES, readJEF } from '../src/engine/formats.js';
 import { LIBRARY, libraryShapes, outlineBand } from '../src/engine/library.js';
 import { makeBackground } from '../src/engine/background.js';
 import { satinShape } from '../src/engine/satin.js';
+import { rasterizeRings } from '../src/engine/vector.js';
 const OUT = fileURLToPath(new URL('./out/', import.meta.url));
 fs.mkdirSync(OUT, { recursive: true });
 setFontLoader(async (f) => fs.readFileSync(new URL('../public/fonts/' + f, import.meta.url)));
@@ -171,6 +172,27 @@ await test('text shapes: arc, circle, wave, vertical, slant – and real STaM fo
   const pts = cv.blocks[0].points;
   for (let i = 1; i < pts.length; i++) { if (pts[i].j) continue; const dx = Math.abs(pts[i].x - pts[i - 1].x), dy = Math.abs(pts[i].y - pts[i - 1].y); if (dx + dy > 1) { sx += dx; sy += dy; } }
   assert.ok(sy > sx * 3, 'stitches run top to bottom (dy ' + sy.toFixed(0) + ' dx ' + sx.toFixed(0) + ')');
+});
+
+await test('logo with thin gold text on white keeps every letter in one colour', async () => {
+  // anti-aliased thin letters (like a printed logo): rasterise 4x, then average down
+  const t = await textToShapes('Heritage Foundation', { font: 'opensans', heightMm: 6 });
+  const res = 0.1; // mm per final pixel
+  const { mask, w, h } = rasterizeRings(t.shapes.flatMap((sh) => [sh.outer, ...sh.holes]), res / 4, 16, 'evenodd');
+  const W = Math.floor(w / 4), H = Math.floor(h / 4);
+  const img = makeImage(W, H);
+  const gold = [186, 140, 40];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    let c = 0; for (let dy = 0; dy < 4; dy++) for (let dx = 0; dx < 4; dx++) c += mask[(y * 4 + dy) * w + x * 4 + dx];
+    const a = c / 16, o = (y * W + x) * 4;
+    for (let k = 0; k < 3; k++) img.data[o + k] = Math.round(255 * (1 - a) + gold[k] * a);
+    img.data[o + 3] = 255;
+  }
+  const d = digitizeImage(img, { widthMm: W * res, colors: 3, removeBackground: true, detail: 0.5, mode: 'logo' });
+  assert.equal(d.objects.length, 1, 'one thread colour, got ' + d.objects.map((o) => o.color).join(','));
+  const letters = t.shapes.length;
+  const got = d.objects[0].shapes.length;
+  assert.ok(got >= letters - 1, `letters kept: ${got} of ${letters}`);
 });
 
 console.log(`\n${passed} tests passed`);
