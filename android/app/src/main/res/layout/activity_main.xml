@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="16dp">
+
+        <!-- אחסון -->
+        <LinearLayout style="@style/Kablon.Card">
+            <TextView style="@style/Kablon.Header" android:text="@string/storage_title" />
+            <TextView android:id="@+id/storageDevice" android:layout_width="match_parent" android:layout_height="wrap_content" />
+            <ProgressBar android:id="@+id/storageDeviceBar" style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" />
+            <TextView android:id="@+id/storageApp" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" />
+            <ProgressBar android:id="@+id/storageAppBar" style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" />
+            <TextView android:id="@+id/storageWarn" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textColor="@color/danger" android:visibility="gone" />
+            <TextView android:id="@+id/storageNoteToggle" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="6dp" android:text="ℹ️ איך אנדרואיד מנהל את הנפח בפועל? (הקש)"
+                android:textColor="@color/brand" />
+            <TextView android:id="@+id/storageNote" style="@style/Kablon.Note" android:text="@string/storage_note"
+                android:visibility="gone" />
+            <Button android:id="@+id/btnCleanup" style="@style/Kablon.Button" android:text="@string/storage_cleanup" />
+        </LinearLayout>
+
+        <!-- הרשאות -->
+        <LinearLayout style="@style/Kablon.Card">
+            <TextView style="@style/Kablon.Header" android:text="@string/perm_title" />
+            <TextView android:id="@+id/permAccessibility" android:layout_width="match_parent" android:layout_height="wrap_content" />
+            <Button android:id="@+id/btnAccessibility" style="@style/Kablon.Button" android:text="@string/perm_enable" />
+            <TextView style="@style/Kablon.Note" android:text="@string/perm_restricted_help" />
+            <Button android:id="@+id/btnAppInfo" style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/perm_open_app_info" />
+            <TextView android:id="@+id/permNotifications" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" />
+            <Button android:id="@+id/btnNotifications" style="@style/Kablon.Button" android:text="@string/perm_enable" />
+        </LinearLayout>
+
+        <!-- מצב אוטומציה -->
+        <LinearLayout style="@style/Kablon.Card">
+            <TextView style="@style/Kablon.Header" android:text="@string/automation_title" />
+            <TextView android:id="@+id/autoState" android:layout_width="match_parent" android:layout_height="wrap_content" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                <Button android:id="@+id/btnPause" android:layout_width="0dp" android:layout_weight="1"
+                    android:layout_height="wrap_content" android:text="@string/btn_pause" android:layout_marginEnd="6dp" />
+                <Button android:id="@+id/btnStop" android:layout_width="0dp" android:layout_weight="1"
+                    android:layout_height="wrap_content" android:text="@string/btn_stop" android:backgroundTint="@color/danger" />
+            </LinearLayout>
+            <Button android:id="@+id/btnTest" style="@style/Kablon.Button" android:text="@string/btn_test" />
+        </LinearLayout>
+
+        <Button android:id="@+id/navStore" style="@style/Kablon.Button" android:text="@string/nav_store" />
+        <Button android:id="@+id/navMedia" style="@style/Kablon.Button" android:text="@string/nav_media" />
+        <Button android:id="@+id/navTikTok" style="@style/Kablon.Button" android:text="@string/nav_tiktok" />
+        <Button android:id="@+id/navLog" style="@style/Kablon.Button" android:text="@string/nav_log" />
+        <Button android:id="@+id/navSettings" style="@style/Kablon.Button" android:text="@string/nav_settings" />
+        <TextView android:id="@+id/versionText" style="@style/Kablon.Note" android:gravity="center" />
+    </LinearLayout>
+</ScrollView>

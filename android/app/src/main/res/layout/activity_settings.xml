@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="16dp">
+
+        <LinearLayout style="@style/Kablon.Card">
+            <TextView style="@style/Kablon.Header" android:text="מודלי AI (API – אופציונלי)" />
+            <RadioGroup android:id="@+id/providerGroup" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <RadioButton android:id="@+id/provOpenAi" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="OpenAI" />
+                <RadioButton android:id="@+id/provGemini" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Gemini" android:layout_marginStart="16dp" />
+            </RadioGroup>
+            <EditText android:id="@+id/openAiKey" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="OpenAI API Key (sk-...)" android:inputType="textPassword" />
+            <EditText android:id="@+id/openAiTextModel" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="מודל טקסט OpenAI" />
+            <EditText android:id="@+id/openAiImageModel" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="מודל תמונה OpenAI" />
+            <EditText android:id="@+id/geminiKey" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="Gemini API Key" android:inputType="textPassword" />
+            <EditText android:id="@+id/geminiTextModel" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="מודל טקסט Gemini" />
+            <EditText android:id="@+id/geminiImageModel" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="מודל תמונה Gemini" />
+            <TextView style="@style/Kablon.Note" android:text="המפתחות נשמרים רק באחסון הפרטי של האפליקציה במכשיר זה. בלי מפתח – Kablon עובד מול אפליקציות ה-AI בצורה גלויה." />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"
+                android:text="אפליקציית AI מועדפת לאוטומציה גלויה:" />
+            <Spinner android:id="@+id/preferredAi" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/Kablon.Card">
+            <TextView style="@style/Kablon.Header" android:text="לוגו קבוע וכיתוב" />
+            <ImageView android:id="@+id/logoPreview" android:layout_width="96dp" android:layout_height="96dp"
+                android:scaleType="fitCenter" android:background="#22000000" />
+            <Button android:id="@+id/btnPickLogo" style="@style/Kablon.Button" android:text="בחר לוגו (PNG שקוף מומלץ)" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="פינת הלוגו:" />
+            <Spinner android:id="@+id/logoCorner" android:layout_width="match_parent" android:layout_height="wrap_content" />
+            <EditText android:id="@+id/logoScale" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="רוחב לוגו (% מרוחב התמונה)" android:inputType="number" />
+            <EditText android:id="@+id/logoMargin" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="מרווח מהשוליים (%)" android:inputType="number" />
+            <EditText android:id="@+id/captionSize" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="גודל כיתוב (% מהצלע הקצרה)" android:inputType="number" />
+            <CheckBox android:id="@+id/captionTop" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="כיתוב למעלה (ברירת מחדל: למטה)" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/Kablon.Card">
+            <TextView style="@style/Kablon.Header" android:text="אוטומציה" />
+            <EditText android:id="@+id/maxRetries" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="מספר ניסיונות לכל לחיצה (1-10)" android:inputType="number" />
+            <EditText android:id="@+id/stepTimeout" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="זמן המתנה מקסימלי לשלב (שניות)" android:inputType="number" />
+            <EditText android:id="@+id/typingDelay" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="השהיית הקלדה גלויה (מ&quot;ש)" android:inputType="number" />
+            <CheckBox android:id="@+id/autoPostDefault" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="פרסום אוטומטי ב-TikTok כברירת מחדל" />
+        </LinearLayout>
+
+        <Button android:id="@+id/btnSave" style="@style/Kablon.Button" android:text="💾 שמור" />
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="16dp">
+        <LinearLayout style="@style/Kablon.Card">
+            <TextView style="@style/Kablon.Header" android:text="מדיה מוכנה" />
+            <ImageView android:id="@+id/ttPreview" android:layout_width="match_parent" android:layout_height="200dp"
+                android:scaleType="fitCenter" android:background="#22000000" />
+            <TextView android:id="@+id/ttMediaInfo" style="@style/Kablon.Note" />
+        </LinearLayout>
+        <LinearLayout style="@style/Kablon.Card">
+            <TextView style="@style/Kablon.Header" android:text="תוכן הפוסט" />
+            <EditText android:id="@+id/ttTopic" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="נושא / תיאור קצר (בשביל הצעת ה-AI)" />
+            <EditText android:id="@+id/ttPostText" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="תיאור הפוסט + #האשטגים (ריק = הצעת AI)" android:minLines="2" android:gravity="top|start" />
+            <EditText android:id="@+id/ttSound" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="חיפוש סאונד (ריק = הצעת AI, או דלג)" />
+            <Button android:id="@+id/btnSuggestApi" style="@style/Kablon.Button" android:text="🤖 קבל הצעת סאונד + כיתוב (API)" />
+            <CheckBox android:id="@+id/ttUseAiApp" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="לקבל הצעה מאפליקציית ה-AI בצורה גלויה (במקום API)" />
+            <CheckBox android:id="@+id/ttAutoPost" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="לפרסם אוטומטית בסוף (כבוי = עצירה לפני 'פרסם' לבדיקה שלך)" />
+        </LinearLayout>
+        <Button android:id="@+id/btnRunTikTok" style="@style/Kablon.Button" android:text="🚀 הפעל זרימת TikTok (גלוי על המסך)" />
+        <TextView style="@style/Kablon.Note"
+            android:text="הזרימה: פתיחת TikTok עם המדיה ← בחירת סאונד ← הבא ← כתיבת תיאור ← פרסום/עצירה לבדיקה. בכל רגע אפשר ללחוץ השהה/עצור בחלונית הצפה. אם שלב נתקע – תקבל התראה ותוכל להשלים ידנית." />
+        <TextView style="@style/Kablon.Header" android:layout_marginTop="16dp" android:text="יומן אחרון" />
+        <TextView android:id="@+id/ttLog" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="12sp" android:fontFamily="monospace" />
+    </LinearLayout>
+</ScrollView>

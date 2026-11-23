@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand">#FF2D6CDF</color>
+    <color name="brand_dark">#FF1B4AA3</color>
+    <color name="accent">#FFFE2C55</color>
+    <color name="ok">#FF2E7D32</color>
+    <color name="warn">#FFF9A825</color>
+    <color name="danger">#FFC62828</color>
+    <color name="card">#1F7F7F7F</color>
+    <color name="overlay_bg">#E6202124</color>
+    <color name="overlay_alert">#F0C62828</color>
+    <color name="ic_bg">#FF101828</color>
+</resources>

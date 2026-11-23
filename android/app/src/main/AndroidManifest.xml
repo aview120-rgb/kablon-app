@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <!-- הרשאה להפעלת פקודות ב-Termux (RUN_COMMAND) -->
+    <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
+
+    <!-- Android 11+: הצהרה על האפליקציות שהחנות הפנימית בודקת/פותחת -->
+    <queries>
+        <package android:name="com.zhiliaoapp.musically" />
+        <package android:name="com.ss.android.ugc.trill" />
+        <package android:name="com.openai.chatgpt" />
+        <package android:name="com.google.android.apps.bard" />
+        <package android:name="com.anthropic.claude" />
+        <package android:name="com.microsoft.copilot" />
+        <package android:name="ai.perplexity.app.android" />
+        <package android:name="com.lemon.lvoverseas" />
+        <package android:name="com.termux" />
+        <package android:name="com.termux.api" />
+        <package android:name="com.google.android.apps.nbu.files" />
+        <package android:name="com.android.vending" />
+        <package android:name="org.fdroid.fdroid" />
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".KablonApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:requestLegacyExternalStorage="true"
+        android:theme="@style/Theme.Kablon"
+        tools:targetApi="34">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".ui.StoreActivity" android:exported="false" android:label="@string/title_store" />
+        <activity
+            android:name=".ui.MediaActivity"
+            android:exported="true"
+            android:label="@string/title_media">
+            <!-- קבלת תמונה/סרטון בשיתוף מאפליקציות אחרות -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".ui.TikTokActivity" android:exported="false" android:label="@string/title_tiktok" />
+        <activity android:name=".ui.LogActivity" android:exported="false" android:label="@string/title_log" />
+        <activity android:name=".ui.SettingsActivity" android:exported="false" android:label="@string/title_settings" />
+
+        <service
+            android:name=".automation.KablonAccessibilityService"
+            android:exported="false"
+            android:label="@string/accessibility_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+</manifest>

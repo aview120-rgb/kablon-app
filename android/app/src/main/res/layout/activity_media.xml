@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="16dp">
+
+        <LinearLayout style="@style/Kablon.Card">
+            <TextView style="@style/Kablon.Header" android:text="1. בחירת תמונה / סרטון" />
+            <Button android:id="@+id/btnPick" style="@style/Kablon.Button" android:text="בחר מהגלריה" />
+            <ImageView android:id="@+id/preview" android:layout_width="match_parent" android:layout_height="240dp"
+                android:scaleType="fitCenter" android:background="#22000000" android:layout_marginTop="6dp" />
+            <TextView android:id="@+id/sourceInfo" style="@style/Kablon.Note" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/Kablon.Card">
+            <TextView style="@style/Kablon.Header" android:text="2. הנחיה ליצירה / עריכה (למודל AI)" />
+            <EditText android:id="@+id/instruction" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="לדוגמה: הפוך את הרקע לשקיעה בים, סגנון קולנועי" android:minLines="2" android:gravity="top|start" />
+            <Button android:id="@+id/btnAiApi" style="@style/Kablon.Button" android:text="🤖 עריכת תמונה דרך API (OpenAI / Gemini)" />
+            <Button android:id="@+id/btnAiApp" style="@style/Kablon.Button" android:text="📲 שליחה לאפליקציית AI (אוטומציה גלויה)" />
+            <TextView style="@style/Kablon.Note" android:text="באוטומציה הגלויה: Kablon פותח את אפליקציית ה-AI, מצרף את המדיה, מקליד את ההנחיה ושולח. את התוצאה שמור לגלריה מתוך אפליקציית ה-AI ובחר אותה כאן מחדש." />
+        </LinearLayout>
+
+        <LinearLayout style="@style/Kablon.Card">
+            <TextView style="@style/Kablon.Header" android:text="3. כיתוב + לוגו" />
+            <EditText android:id="@+id/caption" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="כיתוב שיופיע על התמונה/הסרטון (אופציונלי)" />
+            <TextView android:id="@+id/logoInfo" style="@style/Kablon.Note" />
+            <Button android:id="@+id/btnProcess" style="@style/Kablon.Button" android:text="✨ הוסף לוגו + כיתוב ושמור לגלריה" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/Kablon.Card">
+            <TextView style="@style/Kablon.Header" android:text="4. ניסיון הסרת סימן מים" />
+            <TextView style="@style/Kablon.Note" android:text="@string/watermark_note" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp"
+                android:text="פינת סימן המים (לסרטונים – טשטוש אזור דרך Termux):" />
+            <Spinner android:id="@+id/wmCorner" android:layout_width="match_parent" android:layout_height="wrap_content" />
+            <CheckBox android:id="@+id/wmRights" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="אני מאשר/ת שהתוכן שלי או שיש לי זכות לערוך אותו" />
+            <Button android:id="@+id/btnWatermark" style="@style/Kablon.Button" android:text="🧽 נסה להסיר סימן מים" />
+        </LinearLayout>
+
+        <ProgressBar android:id="@+id/progress" style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:indeterminate="true"
+            android:visibility="gone" />
+        <TextView android:id="@+id/resultText" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp" />
+        <Button android:id="@+id/btnToTikTok" style="@style/Kablon.Button" android:text="🎵 המשך ל-TikTok" />
+    </LinearLayout>
+</ScrollView>

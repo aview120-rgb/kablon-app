@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kablon אוטומציה</string>
+    <string name="title_store">מרכז אפליקציות וכלים</string>
+    <string name="title_media">עיבוד מדיה</string>
+    <string name="title_tiktok">זרימת TikTok</string>
+    <string name="title_log">יומן שלבים</string>
+    <string name="title_settings">הגדרות</string>
+
+    <string name="accessibility_label">Kablon – אוטומציה גלויה</string>
+    <string name="accessibility_description">השירות מאפשר ל-Kablon לפתוח אפליקציות, להקליד, ללחוץ ולגלול בצורה גלויה על המסך לפי זרימות שאתה מפעיל. ניתן לעצור בכל רגע מהחלונית הצפה. השירות לא אוסף סיסמאות ואינו שולח את תוכן המסך לשום מקום מלבד המודל שאתה בוחר להפעיל.</string>
+
+    <string name="storage_title">אחסון – יעד 80GB</string>
+    <string name="storage_note">הערה טכנית: אנדרואיד לא מאפשר "לשריין" מחיצה קבועה של 80GB לאפליקציה. כל האפליקציות חולקות את מחיצת הנתונים (/data) עם קבצי המשתמש, והמערכת עצמה (system/vendor) יושבת על מחיצות נפרדות – לכן במכשיר 128GB מוצגים בדרך כלל כ-110–119GB בלבד (וגם 1GB=10⁹ בייט מול GiB). Kablon מתייחס ל-80GB כ"תקציב" רך: הוא סופר את כל הקבצים שלו (פלטים, מטמון, לוגים), חוסם עבודות חדשות כשהתקציב יתמלא, ושומר תמיד מרווח מינימלי פנוי של 10GB לטלפון, לעדכוני מערכת, למטמון של אפליקציות אחרות ולקבצים זמניים. המערכת גם רשאית למחוק את תיקיית המטמון (cache) של האפליקציה כשהאחסון נמוך – לכן קבצים חשובים נשמרים לגלריה ולא במטמון.</string>
+    <string name="storage_cleanup">ניקוי מטמון ופלטים ישנים (מעל 7 ימים)</string>
+
+    <string name="perm_title">הרשאות</string>
+    <string name="perm_accessibility">שירות נגישות (אוטומציה + חלונית צפה)</string>
+    <string name="perm_notifications">התראות (כשנדרשת התערבות ידנית)</string>
+    <string name="perm_enable">הפעלה</string>
+    <string name="perm_restricted_help">אם המתג אפור ("הגדרה מוגבלת"): פתח פרטי אפליקציה ← ⋮ למעלה ← "התרת הגדרות מוגבלות", ואז חזור להפעלת שירות הנגישות.</string>
+    <string name="perm_open_app_info">פתח פרטי אפליקציה</string>
+
+    <string name="automation_title">מצב אוטומציה</string>
+    <string name="btn_pause">השהה</string>
+    <string name="btn_resume">המשך</string>
+    <string name="btn_stop">עצור</string>
+    <string name="btn_test">בדיקה מהירה (פתיחת אפליקציית AI והקלדה)</string>
+
+    <string name="nav_store">🛒 מרכז אפליקציות וכלים</string>
+    <string name="nav_media">🖼️ עיבוד תמונה / סרטון</string>
+    <string name="nav_tiktok">🎵 זרימת TikTok</string>
+    <string name="nav_log">📋 יומן שלבים</string>
+    <string name="nav_settings">⚙️ הגדרות</string>
+
+    <string name="watermark_note">⚠️ מגבלות הסרת סימן מים: מודל AI לא "מוחק" סימן מים אלא מצייר מחדש את האזור (או את כל התמונה) – התוצאה עלולה לשנות פרטים, פנים, טקסט וצבעים, ולעיתים המודל יסרב. בסרטונים אין כרגע הסרה אמינה: האפשרות כאן היא טשטוש אזור (ffmpeg delogo דרך Termux), שמשאיר כתם מטושטש. השתמש רק בתוכן שבבעלותך או שיש לך זכות לערוך – הסרת סימן מים מתוכן של אחרים עלולה להפר זכויות יוצרים ואת תנאי השימוש של TikTok.</string>
+</resources>
