@@ -145,7 +145,14 @@ public class MainActivity extends Activity {
 
     private void render() {
         boolean on = isServiceOn();
-        status.setText(on ? "✅ הסורק פעיל – עבור ליד2 וגלול" : "⛔ הסורק כבוי – לחץ \"הפעל סורק\"");
+        String diag = "";
+        if (on) {
+            String y = findYad2Package();
+            diag = "\nיד2 במכשיר: " + (y != null ? "נמצאה ✓" : "לא נמצאה ✗")
+                    + " · סריקות: " + DealScannerService.scans
+                    + " · מודעות בסריקה האחרונה: " + DealScannerService.cardsLastScan;
+        }
+        status.setText((on ? "✅ הסורק פעיל – עבור ליד2 וגלול" : "⛔ הסורק כבוי – לחץ \"הפעל סורק\"") + diag);
         status.setBackground(round(on ? Color.parseColor("#E6F4EA") : Color.parseColor("#FCE8E6"), 10));
 
         int maxPrice = prefs.getInt("maxPrice", 2000);
@@ -263,13 +270,28 @@ public class MainActivity extends Activity {
             cm.setPrimaryClip(ClipData.newPlainText("search", query));
             Toast.makeText(this, "הכותרת הועתקה – הדבק בחיפוש של יד2", Toast.LENGTH_LONG).show();
         }
-        String[] pkgs = {DealScannerService.lastYad2Package, "com.yad2.yad2", "il.co.yad2", "com.yad2"};
-        for (String p : pkgs) {
-            if (p == null) continue;
-            Intent i = getPackageManager().getLaunchIntentForPackage(p);
-            if (i != null) { startActivity(i); return; }
+        String yad2 = findYad2Package();
+        if (yad2 != null) {
+            Intent i = getPackageManager().getLaunchIntentForPackage(yad2);
+            if (i != null) { i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(i); return; }
         }
-        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.yad2.co.il/products/computers-and-accessories?category=6&item=34")));
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.yad2.co.il/products/computers-and-accessories?category=6&item=34")));
+        } catch (Exception e) {
+            Toast.makeText(this, "לא נמצאה אפליקציית יד2 – פתח אותה ידנית", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /** The installed Yad2 app (any launcher app whose package mentions yad2, except this app). */
+    private String findYad2Package() {
+        String last = DealScannerService.lastYad2Package;
+        if (last != null && !last.equals(getPackageName())) return last;
+        Intent main = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+        for (android.content.pm.ResolveInfo ri : getPackageManager().queryIntentActivities(main, 0)) {
+            String p = ri.activityInfo.packageName;
+            if (!p.equals(getPackageName()) && p.toLowerCase(java.util.Locale.ROOT).contains("yad2")) return p;
+        }
+        return null;
     }
 
     // ---------- tiny UI helpers ----------

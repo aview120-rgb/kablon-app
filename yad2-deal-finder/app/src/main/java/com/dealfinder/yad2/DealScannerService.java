@@ -26,6 +26,9 @@ public class DealScannerService extends AccessibilityService {
     static final String CHANNEL = "deals";
     static volatile boolean running;
     static volatile String lastYad2Package;
+    static volatile String lastEventPackage;
+    static volatile int scans;
+    static volatile int cardsLastScan;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private String pendingPackage;
@@ -46,6 +49,7 @@ public class DealScannerService extends AccessibilityService {
         CharSequence pkg = event.getPackageName();
         if (pkg == null) return;
         String p = pkg.toString();
+        lastEventPackage = p;
         if (!isWatched(p)) return;
         if (p.contains("yad2")) lastYad2Package = p;
         pendingPackage = p;
@@ -55,6 +59,7 @@ public class DealScannerService extends AccessibilityService {
     }
 
     private boolean isWatched(String p) {
+        if (p.equals(getPackageName())) return false; // never scan our own screen
         if (p.toLowerCase(Locale.ROOT).contains("yad2")) return true;
         SharedPreferences prefs = getSharedPreferences("settings", MODE_PRIVATE);
         return prefs.getBoolean("facebook", true) && p.equals("com.facebook.katana");
@@ -88,6 +93,8 @@ public class DealScannerService extends AccessibilityService {
             findCards(root, cards, 0);
         }
 
+        scans++;
+        cardsLastScan = cards.size() + (detailLines != null ? 1 : 0);
         ListingStore store = ListingStore.get(this);
         if (detailLines != null && !ListingParser.prices(String.join("\n", detailLines)).isEmpty()) {
             maybeNotify(store.add(detailLines, true, source));

@@ -108,7 +108,7 @@ public final class ListingStore {
 
     private void load() {
         try {
-            JSONArray arr = new JSONArray(prefs.getString("items", "[]"));
+            JSONArray arr = new JSONArray(prefs.getString("items_v2", "[]"));
             for (int i = 0; i < arr.length(); i++) {
                 JSONObject o = arr.getJSONObject(i);
                 Item it = new Item();
@@ -131,7 +131,7 @@ public final class ListingStore {
                 o.put("t", it.text); o.put("d", it.detail); o.put("s", it.source); o.put("at", it.seenAt); o.put("p", it.specs.price);
                 arr.put(o);
             }
-            prefs.edit().putString("items", arr.toString()).apply();
+            prefs.edit().putString("items_v2", arr.toString()).apply();
         } catch (Exception ignored) { }
     }
 }
