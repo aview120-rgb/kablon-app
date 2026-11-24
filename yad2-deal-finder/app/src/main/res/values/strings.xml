@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">צייד מציאות</string>
+    <string name="service_name">צייד מציאות – סורק מודעות</string>
+    <string name="service_desc">קורא את מודעות המחשבים שמופיעות על המסך ביד2 (ובפייסבוק Marketplace אם הופעל), ומדרג אותן לפי מחיר מול מפרט. לא לוחץ, לא גולל ולא שולח מידע מהטלפון – הכל נשמר רק במכשיר.</string>
+</resources>
