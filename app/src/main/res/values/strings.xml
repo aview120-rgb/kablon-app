@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AutoAgent</string>
+    <string name="share_label">AutoAgent receipt</string>
+    <string name="accessibility_label">AutoAgent scheduled sends</string>
+    <string name="listener_label">AutoAgent inbox</string>
+    <string name="accessibility_description">Used only when a message you scheduled is due in WhatsApp or another app you picked. AutoAgent opens that app, pastes exactly the text you saved, taps Send once, and logs the result. If the screen does not match what it expects, it stops and notifies you. It does not read other screens or send anything you did not schedule.</string>
+</resources>
