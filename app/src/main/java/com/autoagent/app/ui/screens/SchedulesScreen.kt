@@ -1,5 +1,6 @@
 package com.autoagent.app.ui.screens
 
+import com.autoagent.app.util.L
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -60,8 +61,8 @@ fun SchedulesScreen(vm: SchedulesViewModel) {
     val msg by vm.message.collectAsState()
     Column(Modifier.fillMaxSize()) {
         TabRow(selectedTabIndex = tab) {
-            Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Messages") }, modifier = Modifier.heightIn(min = 56.dp))
-            Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Alarms") }, modifier = Modifier.heightIn(min = 56.dp))
+            Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(L.t("Messages", "הודעות")) }, modifier = Modifier.heightIn(min = 56.dp))
+            Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(L.t("Alarms", "שעונים מעוררים")) }, modifier = Modifier.heightIn(min = 56.dp))
         }
         msg?.let {
             Text(it, modifier = Modifier.padding(16.dp).clickable { vm.message.value = null }, color = Warn)
@@ -75,12 +76,17 @@ private fun MessagesTab(vm: SchedulesViewModel) {
     val sends by vm.sends.collectAsState()
     var editing by remember { mutableStateOf(false) }
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { BigButton("New scheduled message", Modifier.padding(top = 12.dp)) { editing = true } }
+        item { BigButton(L.t("New scheduled message", "הודעה מתוזמנת חדשה"), Modifier.padding(top = 12.dp)) { editing = true } }
         item {
             Text(
-                "One recipient per message, max ${SendScheduler.DAILY_CAP} per day. SMS goes through Android's SmsManager. " +
-                    "Other apps are driven by the accessibility service: it opens the app, pastes only your saved text and taps Send. " +
-                    "If the screen does not match, it aborts and notifies you.",
+                L.t(
+                    "One recipient per message, max ${SendScheduler.DAILY_CAP} per day. SMS goes through Android's SmsManager. " +
+                        "Other apps are driven by the accessibility service: it opens the app, pastes only your saved text and taps Send. " +
+                        "If the screen does not match, it aborts and notifies you.",
+                    "נמען אחד לכל הודעה, עד ${SendScheduler.DAILY_CAP} ביום. SMS נשלח דרך מנגנון ה-SMS של אנדרואיד. " +
+                        "באפליקציות אחרות שירות הנגישות פותח את האפליקציה, מדביק רק את הטקסט ששמרת ולוחץ שלח. " +
+                        "אם המסך לא תואם, השליחה מבוטלת ותקבל התראה.",
+                ),
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -89,7 +95,7 @@ private fun MessagesTab(vm: SchedulesViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("${s.appLabel} → ${s.recipientLabel}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     Text(
-                        s.status,
+                        SendStatus.label(s.status),
                         color = when (s.status) { SendStatus.SENT -> Ok; SendStatus.PENDING, SendStatus.RUNNING -> Warn; else -> Bad },
                     )
                 }
@@ -97,8 +103,8 @@ private fun MessagesTab(vm: SchedulesViewModel) {
                 Text("\"${s.text}\"", style = MaterialTheme.typography.bodyMedium)
                 if (s.resultNote.isNotBlank()) Text(s.resultNote, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 ButtonRow {
-                    if (s.status == SendStatus.PENDING) BigOutlined("Cancel", Modifier.weight(1f)) { vm.cancel(s) }
-                    BigOutlined("Delete", Modifier.weight(1f)) { vm.delete(s) }
+                    if (s.status == SendStatus.PENDING) BigOutlined(L.t("Cancel", "ביטול"), Modifier.weight(1f)) { vm.cancel(s) }
+                    BigOutlined(L.t("Delete", "מחיקה"), Modifier.weight(1f)) { vm.delete(s) }
                 }
             }
         }
@@ -125,28 +131,28 @@ private fun SendEditor(vm: SchedulesViewModel, onDismiss: () -> Unit) {
         if (uri == null) return@rememberLauncherForActivityResult
         val res = Contacts.numbersForContactUri(context, uri)
         if (res == null || res.second.isEmpty()) {
-            pickError = if (res == null) "Contacts permission is needed to read the number" else "That contact has no phone number"
+            pickError = if (res == null) L.t("Contacts permission is needed to read the number", "צריך הרשאה לאנשי קשר כדי לקרוא את המספר") else L.t("That contact has no phone number", "לאיש הקשר הזה אין מספר טלפון")
         } else {
             recipient = res.second.first()
             recipientLabel = res.first
-            pickError = if (res.second.size > 1) "Using ${res.second.first()} (contact has ${res.second.size} numbers; edit if needed)" else null
+            pickError = if (res.second.size > 1) L.t("Using ${res.second.first()} (contact has ${res.second.size} numbers; edit if needed)", "נבחר ${res.second.first()} (לאיש הקשר יש ${res.second.size} מספרים; אפשר לערוך)") else null
         }
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Scheduled message") },
+        title = { Text(L.t("Scheduled message", "הודעה מתוזמנת")) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(channel == SendChannel.SMS, { channel = SendChannel.SMS }, { Text("SMS") })
-                    if (whatsapp != null) FilterChip(channel == SendChannel.WHATSAPP, { channel = SendChannel.WHATSAPP; app = whatsapp }, { Text("WhatsApp") })
-                    FilterChip(channel == SendChannel.APP, { channel = SendChannel.APP; appMenu = true }, { Text("Other app") })
+                    if (whatsapp != null) FilterChip(channel == SendChannel.WHATSAPP, { channel = SendChannel.WHATSAPP; app = whatsapp }, { Text(L.t("WhatsApp", "וואטסאפ")) })
+                    FilterChip(channel == SendChannel.APP, { channel = SendChannel.APP; appMenu = true }, { Text(L.t("Other app", "אפליקציה אחרת")) })
                 }
                 if (channel == SendChannel.APP) {
                     Column {
                         OutlinedButton(onClick = { appMenu = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-                            Text(app?.label ?: "Choose app")
+                            Text(app?.label ?: L.t("Choose app", "בחירת אפליקציה"))
                         }
                         DropdownMenu(expanded = appMenu, onDismissRequest = { appMenu = false }) {
                             targets.forEach { t -> DropdownMenuItem(text = { Text(t.label) }, onClick = { app = t; appMenu = false }) }
@@ -155,29 +161,29 @@ private fun SendEditor(vm: SchedulesViewModel, onDismiss: () -> Unit) {
                 }
                 when (channel) {
                     SendChannel.SMS -> {
-                        OutlinedTextField(recipient, { recipient = it; recipientLabel = it }, label = { Text("Phone number") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                        BigOutlined("Pick contact", Modifier.fillMaxWidth()) { picker.launch(null) }
+                        OutlinedTextField(recipient, { recipient = it; recipientLabel = it }, label = { Text(L.t("Phone number", "מספר טלפון")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        BigOutlined(L.t("Pick contact", "בחירת איש קשר"), Modifier.fillMaxWidth()) { picker.launch(null) }
                     }
                     SendChannel.WHATSAPP -> {
-                        Text("Phone in international format (+972…), or the exact contact/group name as shown in WhatsApp.", style = MaterialTheme.typography.bodyMedium)
-                        OutlinedTextField(recipient, { recipient = it; recipientLabel = it }, label = { Text("+number or exact name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                        BigOutlined("Pick contact", Modifier.fillMaxWidth()) { picker.launch(null) }
+                        Text(L.t("Phone in international format (+972…), or the exact contact/group name as shown in WhatsApp.", "מספר בפורמט בינלאומי (‎+972…‎), או השם המדויק של איש הקשר או הקבוצה כמו שמופיע בוואטסאפ."), style = MaterialTheme.typography.bodyMedium)
+                        OutlinedTextField(recipient, { recipient = it; recipientLabel = it }, label = { Text(L.t("+number or exact name", "‎+מספר או שם מדויק")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        BigOutlined(L.t("Pick contact", "בחירת איש קשר"), Modifier.fillMaxWidth()) { picker.launch(null) }
                     }
                     else -> {
-                        Text("Exact contact or group name as the app shows it in its share list.", style = MaterialTheme.typography.bodyMedium)
-                        OutlinedTextField(recipientLabel, { recipientLabel = it; recipient = it }, label = { Text("Exact name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        Text(L.t("Exact contact or group name as the app shows it in its share list.", "השם המדויק של איש הקשר או הקבוצה כמו שהאפליקציה מציגה ברשימת השיתוף."), style = MaterialTheme.typography.bodyMedium)
+                        OutlinedTextField(recipientLabel, { recipientLabel = it; recipient = it }, label = { Text(L.t("Exact name", "שם מדויק")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     }
                 }
-                if (recipientLabel.isNotBlank() && recipientLabel != recipient) Text("To: $recipientLabel ($recipient)")
+                if (recipientLabel.isNotBlank() && recipientLabel != recipient) Text(L.t("To: $recipientLabel ($recipient)", "אל: $recipientLabel ($recipient)"))
                 pickError?.let { Text(it, color = Warn) }
-                OutlinedTextField(text, { text = it.take(SendScheduler.MAX_TEXT) }, label = { Text("Message text") }, minLines = 3, modifier = Modifier.fillMaxWidth())
-                BigOutlined("When: ${TimeText.full(at)}", Modifier.fillMaxWidth()) { pickDateTime(context, at) { at = it } }
+                OutlinedTextField(text, { text = it.take(SendScheduler.MAX_TEXT) }, label = { Text(L.t("Message text", "תוכן ההודעה")) }, minLines = 3, modifier = Modifier.fillMaxWidth())
+                BigOutlined(L.t("When: ${TimeText.full(at)}", "מתי: ${TimeText.full(at)}"), Modifier.fillMaxWidth()) { pickDateTime(context, at) { at = it } }
             }
         },
         confirmButton = {
             TextButton(onClick = {
                 val target = if (channel == SendChannel.SMS) TargetApp("sms", "SMS") else app
-                if (target == null) { pickError = "Choose an app"; return@TextButton }
+                if (target == null) { pickError = L.t("Choose an app", "צריך לבחור אפליקציה"); return@TextButton }
                 val r = recipient.trim()
                 val pickedFromContacts = recipientLabel.isNotBlank() && recipientLabel != recipient
                 val finalRecipient = when {
@@ -185,7 +191,7 @@ private fun SendEditor(vm: SchedulesViewModel, onDismiss: () -> Unit) {
                     r.startsWith("+") -> r
                     pickedFromContacts -> recipientLabel.trim()
                     r.any { it.isLetter() } -> r
-                    else -> { pickError = "Use international format starting with + for WhatsApp numbers"; return@TextButton }
+                    else -> { pickError = L.t("Use international format starting with + for WhatsApp numbers", "למספרי וואטסאפ צריך פורמט בינלאומי שמתחיל ב-+"); return@TextButton }
                 }
                 vm.schedule(
                     ScheduledSend(
@@ -199,9 +205,9 @@ private fun SendEditor(vm: SchedulesViewModel, onDismiss: () -> Unit) {
                     ),
                     onDone = onDismiss,
                 )
-            }) { Text("Schedule") }
+            }) { Text(L.t("Schedule", "תזמון")) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(L.t("Close", "סגירה")) } },
     )
 }
 
@@ -213,11 +219,11 @@ private fun AlarmsTab(vm: SchedulesViewModel) {
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             InfoCard(Modifier.padding(top = 12.dp)) {
-                OutlinedTextField(label, { label = it }, label = { Text("Label (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                BigButton("Pick time and set alarm") {
+                OutlinedTextField(label, { label = it }, label = { Text(L.t("Label (optional)", "תווית (לא חובה)")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                BigButton(L.t("Pick time and set alarm", "בחירת שעה וקביעת שעון")) {
                     pickDateTime(context, System.currentTimeMillis() + 3_600_000L) { vm.addAlarm(it, label); label = "" }
                 }
-                Text("Exact alarms survive reboot and Doze.", style = MaterialTheme.typography.bodyMedium)
+                Text(L.t("Exact alarms survive reboot and Doze.", "שעונים מדויקים נשמרים גם אחרי הפעלה מחדש ובמצב שינה."), style = MaterialTheme.typography.bodyMedium)
             }
         }
         items(alarms, key = { it.id }) { a ->
@@ -229,7 +235,7 @@ private fun AlarmsTab(vm: SchedulesViewModel) {
                     }
                     Switch(checked = a.enabled, onCheckedChange = { vm.toggleAlarm(a, it) })
                 }
-                BigOutlined("Delete", Modifier.fillMaxWidth()) { vm.deleteAlarm(a) }
+                BigOutlined(L.t("Delete", "מחיקה"), Modifier.fillMaxWidth()) { vm.deleteAlarm(a) }
             }
         }
         item { Text(" ") }

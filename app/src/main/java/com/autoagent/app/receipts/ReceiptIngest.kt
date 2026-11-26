@@ -1,5 +1,6 @@
 package com.autoagent.app.receipts
 
+import com.autoagent.app.util.L
 import android.content.Context
 import android.net.Uri
 import android.webkit.MimeTypeMap
@@ -20,7 +21,7 @@ object ReceiptIngest {
             ?: if (mime?.startsWith("audio") == true) "m4a" else "jpg"
         val out = File(dir, "r_${System.currentTimeMillis()}.$ext")
         context.contentResolver.openInputStream(uri)?.use { input -> out.outputStream().use { input.copyTo(it) } }
-            ?: error("Could not read the shared file")
+            ?: error(L.t("Could not read the shared file", "לא הצלחתי לקרוא את הקובץ ששותף"))
         out
     }
 
@@ -30,16 +31,16 @@ object ReceiptIngest {
         val text = if (isAudio) {
             when (val r = AudioTranscriber.transcribe(context, uri)) {
                 is AudioTranscriber.Result.Text -> r.text
-                is AudioTranscriber.Result.Unsupported -> return Outcome(null, r.reason + " The audio file was kept in app storage.")
+                is AudioTranscriber.Result.Unsupported -> return Outcome(null, r.reason + L.t(" The audio file was kept in app storage.", " קובץ הקול נשמר באחסון של האפליקציה."))
             }
         } else {
             try {
                 OcrEngine.recognize(context, uri)
             } catch (e: Exception) {
-                return Outcome(null, "OCR failed: ${e.message}")
+                return Outcome(null, L.t("OCR failed: ${e.message}", "זיהוי הטקסט נכשל: ${e.message}"))
             }
         }
-        if (text.isBlank()) return Outcome(null, "No text found in the ${if (isAudio) "voice note" else "image"}")
+        if (text.isBlank()) return Outcome(null, if (isAudio) L.t("No text found in the voice note", "לא נמצא טקסט בהקלטה") else L.t("No text found in the image", "לא נמצא טקסט בתמונה"))
         return save(app, text, if (isAudio) ReceiptSource.VOICE else ReceiptSource.IMAGE, file.absolutePath, "file:${file.absolutePath}")
     }
 
@@ -64,11 +65,11 @@ object ReceiptIngest {
         val id = withContext(Dispatchers.IO) { app.db.receipts().insert(receipt) }
         app.log("receipt", "Saved receipt: ${p.merchant.ifBlank { "?" }} ${p.total ?: ""} ${p.currency}", true)
         val missing = listOfNotNull(
-            "merchant".takeIf { p.merchant.isBlank() },
-            "date".takeIf { p.dateMillis == null },
-            "total".takeIf { p.total == null },
+            L.t("merchant", "בית העסק").takeIf { p.merchant.isBlank() },
+            L.t("date", "תאריך").takeIf { p.dateMillis == null },
+            L.t("total", "סכום").takeIf { p.total == null },
         )
-        val msg = if (missing.isEmpty()) "Receipt saved" else "Receipt saved; please fill in: ${missing.joinToString()}"
+        val msg = if (missing.isEmpty()) L.t("Receipt saved", "הקבלה נשמרה") else L.t("Receipt saved; please fill in: ${missing.joinToString()}", "הקבלה נשמרה; צריך להשלים: ${missing.joinToString()}")
         return Outcome(receipt.copy(id = id), msg)
     }
 }

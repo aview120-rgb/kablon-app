@@ -1,5 +1,6 @@
 package com.autoagent.app.schedule
 
+import com.autoagent.app.util.L
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
@@ -29,15 +30,15 @@ object SendScheduler {
 
     suspend fun create(context: Context, send: ScheduledSend): CreateResult {
         val app = context.applicationContext as AutoAgentApp
-        if (send.text.isBlank()) return CreateResult.Rejected("Message text is empty")
-        if (send.text.length > MAX_TEXT) return CreateResult.Rejected("Message is longer than $MAX_TEXT characters")
-        if (send.recipient.isBlank()) return CreateResult.Rejected("Pick one recipient")
+        if (send.text.isBlank()) return CreateResult.Rejected(L.t("Message text is empty", "ההודעה ריקה"))
+        if (send.text.length > MAX_TEXT) return CreateResult.Rejected(L.t("Message is longer than $MAX_TEXT characters", "ההודעה ארוכה מ-$MAX_TEXT תווים"))
+        if (send.recipient.isBlank()) return CreateResult.Rejected(L.t("Pick one recipient", "צריך לבחור נמען אחד"))
         if (send.recipient.contains(',') || send.recipient.contains(';')) {
-            return CreateResult.Rejected("One recipient per schedule. Bulk lists are not supported.")
+            return CreateResult.Rejected(L.t("One recipient per schedule. Bulk lists are not supported.", "נמען אחד לכל תזמון. אין תמיכה ברשימות תפוצה."))
         }
-        if (send.sendAt < System.currentTimeMillis() + 30_000) return CreateResult.Rejected("Pick a time at least 30 seconds ahead")
+        if (send.sendAt < System.currentTimeMillis() + 30_000) return CreateResult.Rejected(L.t("Pick a time at least 30 seconds ahead", "צריך לבחור זמן של לפחות 30 שניות מעכשיו"))
         val recent = app.db.sends().createdSince(System.currentTimeMillis() - 86_400_000L)
-        if (recent >= DAILY_CAP) return CreateResult.Rejected("Daily limit of $DAILY_CAP scheduled messages reached")
+        if (recent >= DAILY_CAP) return CreateResult.Rejected(L.t("Daily limit of $DAILY_CAP scheduled messages reached", "הגעת למגבלה היומית של $DAILY_CAP הודעות מתוזמנות"))
         val id = app.db.sends().insert(send.copy(status = SendStatus.PENDING))
         val exact = arm(context, id, send.sendAt)
         app.log("schedule", "Scheduled ${send.channel} to ${send.recipientLabel} in ${send.appLabel}", true)
@@ -72,7 +73,7 @@ object SendScheduler {
     suspend fun cancel(context: Context, send: ScheduledSend) {
         val app = context.applicationContext as AutoAgentApp
         context.getSystemService(AlarmManager::class.java).cancel(pending(context, send.id))
-        app.db.sends().setStatus(send.id, SendStatus.CANCELLED, "Cancelled by you")
+        app.db.sends().setStatus(send.id, SendStatus.CANCELLED, L.t("Cancelled by you", "בוטל על ידך"))
         app.log("schedule", "Cancelled send to ${send.recipientLabel}", true)
         AgentStatus.refresh(context)
     }

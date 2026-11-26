@@ -14,6 +14,8 @@ data class SettingsState(
     val imapUser: String = "",
     val imapPasswordSet: Boolean = false,
     val seeded: Boolean = false,
+    /** "auto" (follow phone), "he" or "en". */
+    val language: String = "auto",
 )
 
 /** Small SharedPreferences-backed settings store exposed as a StateFlow. Stays on device. */
@@ -31,6 +33,7 @@ class Settings(context: Context) {
         imapUser = prefs.getString(K_USER, "") ?: "",
         imapPasswordSet = !prefs.getString(K_PASS, null).isNullOrEmpty(),
         seeded = prefs.getBoolean(K_SEEDED, false),
+        language = prefs.getString(K_LANG, "auto") ?: "auto",
     )
 
     private fun edit(block: android.content.SharedPreferences.Editor.() -> Unit) {
@@ -44,6 +47,10 @@ class Settings(context: Context) {
     fun setAutoAnswerDelay(sec: Int) = edit { putInt(K_DELAY, sec.coerceIn(0, 30)) }
     fun setMaxTurns(turns: Int) = edit { putInt(K_TURNS, turns.coerceIn(1, 6)) }
     fun setSeeded() = edit { putBoolean(K_SEEDED, true) }
+    fun setLanguage(mode: String) {
+        edit { putString(K_LANG, mode) }
+        com.autoagent.app.util.L.apply(mode)
+    }
 
     fun setImap(host: String, port: Int, user: String, encryptedPassword: String?) = edit {
         putString(K_HOST, host.trim())
@@ -65,5 +72,6 @@ class Settings(context: Context) {
         private const val K_USER = "imap_user"
         private const val K_PASS = "imap_pass"
         private const val K_SEEDED = "seeded"
+        private const val K_LANG = "language"
     }
 }

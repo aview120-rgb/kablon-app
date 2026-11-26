@@ -1,5 +1,6 @@
 package com.autoagent.app.calls
 
+import com.autoagent.app.util.L
 import android.os.Handler
 import android.os.Looper
 import android.telecom.CallAudioState
@@ -25,7 +26,7 @@ class TestConnectionService : ConnectionService() {
         conn.connectionProperties = Connection.PROPERTY_SELF_MANAGED
         conn.audioModeIsVoip = true
         conn.setAddress(request?.address, TelecomManager.PRESENTATION_ALLOWED)
-        conn.setCallerDisplayName("Assistant test", TelecomManager.PRESENTATION_ALLOWED)
+        conn.setCallerDisplayName(L.t("Assistant test", "בדיקת עוזר"), TelecomManager.PRESENTATION_ALLOWED)
         conn.setRinging()
         Handler(Looper.getMainLooper()).postDelayed({ conn.onAnswer() }, 500)
         return conn

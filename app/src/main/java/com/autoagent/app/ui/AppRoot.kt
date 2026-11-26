@@ -18,7 +18,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.unit.dp
+import com.autoagent.app.util.L
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -38,22 +44,22 @@ import com.autoagent.app.ui.screens.VoiceScreen
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
-private val tabs = listOf(
-    Tab("home", "Home", Icons.Filled.Home),
-    Tab("schedules", "Schedules", Icons.Filled.Schedule),
-    Tab("autoanswer", "Calls", Icons.Filled.Call),
-    Tab("inbox", "Inbox", Icons.Filled.Inbox),
-    Tab("voice", "Voice", Icons.Filled.Mic),
+private fun tabs() = listOf(
+    Tab("home", L.t("Home", "בית"), Icons.Filled.Home),
+    Tab("schedules", L.t("Schedules", "תזמונים"), Icons.Filled.Schedule),
+    Tab("autoanswer", L.t("Calls", "שיחות"), Icons.Filled.Call),
+    Tab("inbox", L.t("Inbox", "הודעות"), Icons.Filled.Inbox),
+    Tab("voice", L.t("Voice", "קול"), Icons.Filled.Mic),
 )
 
-private val titles = mapOf(
+private fun titles() = mapOf(
     "home" to "AutoAgent",
-    "schedules" to "Schedules",
-    "autoanswer" to "Auto-answer",
-    "inbox" to "Inbox summaries",
-    "receipts" to "Receipts",
-    "voice" to "Voice",
-    "permissions" to "Permissions",
+    "schedules" to L.t("Schedules", "תזמונים"),
+    "autoanswer" to L.t("Auto-answer", "מענה אוטומטי"),
+    "inbox" to L.t("Inbox summaries", "סיכומי הודעות"),
+    "receipts" to L.t("Receipts", "קבלות"),
+    "voice" to L.t("Voice", "פקודות קוליות"),
+    "permissions" to L.t("Permissions", "הרשאות"),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,6 +79,10 @@ fun AppRoot(request: LaunchRequest) {
         }
     }
 
+    val titles = titles()
+    val tabs = tabs()
+    val language by homeVm.language.collectAsState()
+
     LaunchedEffect(request.nonce) {
         request.dial?.let { homeVm.dialText.value = it }
         request.receiptFile?.let { receiptsVm.ingest(it, request.receiptAudio) }
@@ -84,8 +94,14 @@ fun AppRoot(request: LaunchRequest) {
             TopAppBar(
                 title = { Text(titles[current] ?: "AutoAgent") },
                 actions = {
+                    TextButton(onClick = { homeVm.cycleLanguage() }, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text(
+                            when (language) { L.HE -> "עברית"; L.EN -> "English"; else -> L.t("Auto", "אוטומטי") },
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
                     IconButton(onClick = { go("permissions") }) {
-                        Icon(Icons.Filled.VerifiedUser, contentDescription = "Permissions")
+                        Icon(Icons.Filled.VerifiedUser, contentDescription = L.t("Permissions", "הרשאות"))
                     }
                 },
             )

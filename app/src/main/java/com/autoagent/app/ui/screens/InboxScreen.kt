@@ -1,5 +1,6 @@
 package com.autoagent.app.ui.screens
 
+import com.autoagent.app.util.L
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,35 +33,35 @@ fun InboxScreen(vm: InboxViewModel) {
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(1 to "1 h", 24 to "24 h", 168 to "7 days").forEach { (h, l) ->
+                listOf(1 to L.t("1 h", "שעה"), 24 to L.t("24 h", "24 שעות"), 168 to L.t("7 days", "7 ימים")).forEach { (h, l) ->
                     FilterChip(hours == h, { vm.windowHours.value = h }, { Text(l) })
                 }
             }
         }
         item {
             ButtonRow {
-                BigButton("Summarize", Modifier.weight(1f)) { vm.summarize() }
-                BigOutlined("Read aloud", Modifier.weight(1f), enabled = summary != null) { vm.readAloud() }
+                BigButton(L.t("Summarize", "סכם"), Modifier.weight(1f)) { vm.summarize() }
+                BigOutlined(L.t("Read aloud", "הקרא"), Modifier.weight(1f), enabled = summary != null) { vm.readAloud() }
             }
         }
         summary?.let { s ->
-            item { SectionTitle("Summary: ${s.total} message(s), ${s.senders.size} sender(s)") }
+            item { SectionTitle(L.t("Summary: ${s.total} message(s), ${s.senders.size} sender(s)", "סיכום: ${s.total} הודעות, ${s.senders.size} שולחים")) }
             items(s.senders) { p ->
                 InfoCard {
                     Row {
-                        Text("${p.sender}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Text(p.sender, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                         Text(TimeText.format(p.lastAt))
                     }
-                    Text("${p.app} · ${p.count} message(s)", style = MaterialTheme.typography.bodyMedium)
-                    p.asks.forEach { Text("Asks: $it", color = Warn) }
-                    if (p.money.isNotEmpty()) Text("Money: ${p.money.joinToString()}", color = Warn)
-                    if (p.asks.isEmpty()) Text("Latest: ${p.latest.take(160)}", style = MaterialTheme.typography.bodyMedium)
+                    Text(L.t("${p.app} · ${p.count} message(s)", "${p.app} · ${p.count} הודעות"), style = MaterialTheme.typography.bodyMedium)
+                    p.asks.forEach { Text(L.t("Asks: $it", "מבקש: $it"), color = Warn) }
+                    if (p.money.isNotEmpty()) Text(L.t("Money: ${p.money.joinToString()}", "סכומים: ${p.money.joinToString()}"), color = Warn)
+                    if (p.asks.isEmpty()) Text(L.t("Latest: ${p.latest.take(160)}", "אחרונה: ${p.latest.take(160)}"), style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
-        item { SectionTitle("Stored notifications (${entries.size})") }
+        item { SectionTitle(L.t("Stored notifications (${entries.size})", "התראות שמורות (${entries.size})")) }
         if (entries.isEmpty()) item {
-            Text("Nothing stored yet. Turn on Notification access in Permissions. Text is kept only on this phone (30 days).")
+            Text(L.t("Nothing stored yet. Turn on Notification access in Permissions. Text is kept only on this phone (30 days).", "עדיין לא נשמר כלום. צריך להפעיל גישה להתראות במסך ההרשאות. הטקסט נשמר רק בטלפון הזה (30 יום)."))
         }
         items(entries.take(100), key = { it.id }) { e ->
             InfoCard(Modifier.fillMaxWidth()) {
@@ -72,7 +73,7 @@ fun InboxScreen(vm: InboxViewModel) {
                 Text(e.text, style = MaterialTheme.typography.bodyMedium)
             }
         }
-        if (entries.isNotEmpty()) item { BigOutlined("Delete all stored notifications", Modifier.fillMaxWidth()) { vm.clear() } }
+        if (entries.isNotEmpty()) item { BigOutlined(L.t("Delete all stored notifications", "מחיקת כל ההתראות השמורות"), Modifier.fillMaxWidth()) { vm.clear() } }
         item { Text(" ") }
     }
 }

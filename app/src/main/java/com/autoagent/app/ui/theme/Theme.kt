@@ -4,6 +4,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import com.autoagent.app.util.L
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -38,7 +45,13 @@ private val Type = Typography(
     labelLarge = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Medium),
 )
 
+/** Dark theme + right-to-left layout when the app language is Hebrew. Re-composes everything on language change. */
 @Composable
 fun AutoAgentTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = Colors, typography = Type, content = content)
+    val hebrew by L.hebrewFlow.collectAsState()
+    CompositionLocalProvider(LocalLayoutDirection provides if (hebrew) LayoutDirection.Rtl else LayoutDirection.Ltr) {
+        MaterialTheme(colorScheme = Colors, typography = Type) {
+            key(hebrew) { content() }
+        }
+    }
 }

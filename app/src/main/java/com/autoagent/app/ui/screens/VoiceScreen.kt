@@ -1,5 +1,6 @@
 package com.autoagent.app.ui.screens
 
+import com.autoagent.app.util.L
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -53,34 +54,34 @@ fun VoiceScreen(vm: VoiceViewModel) {
                     shape = CircleShape,
                     modifier = Modifier.size(150.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = if (listening) Color(0xFFC62828) else MaterialTheme.colorScheme.primary),
-                ) { Icon(Icons.Filled.Mic, contentDescription = "Tap to speak", modifier = Modifier.size(72.dp)) }
+                ) { Icon(Icons.Filled.Mic, contentDescription = L.t("Tap to speak", "הקש כדי לדבר"), modifier = Modifier.size(72.dp)) }
             }
         }
         item {
             Text(
-                if (listening) "Listening… ${partial}" else "Tap the mic and speak",
+                if (listening) L.t("Listening… ${partial}", "מקשיב… ${partial}") else L.t("Tap the mic and speak", "הקש על המיקרופון ודבר"),
                 style = MaterialTheme.typography.titleMedium, modifier = Modifier.fillMaxWidth(),
             )
-            if (!onDevice) Text("On-device recognizer not found: install the offline language pack (Permissions) so commands work without network.", color = Warn)
+            if (!onDevice) Text(L.t("On-device recognizer not found: install the offline language pack (Permissions) so commands work without network.", "לא נמצא זיהוי דיבור במכשיר: צריך להתקין את חבילת השפה הלא מקוונת (במסך ההרשאות) כדי שהפקודות יעבדו בלי אינטרנט."), color = Warn)
         }
         item {
             InfoCard {
-                Text("Offline commands", style = MaterialTheme.typography.titleMedium)
-                Text("• Set alarm for 7:30  /  wake me up in 20 minutes")
-                Text("• Call 050 123 4567  /  call Dana")
-                Text("• Schedule SMS to Dana at 6 pm saying I'm on my way")
-                Text("• Read my summaries")
-                Text("• Turn auto-answer on / off")
+                Text(L.t("Offline commands", "פקודות שעובדות בלי אינטרנט"), style = MaterialTheme.typography.titleMedium)
+                Text(L.t("• Set alarm for 7:30  /  wake me up in 20 minutes", "• תעיר אותי בשבע וחצי  /  תזכיר לי בעוד 20 דקות לצאת"))
+                Text(L.t("• Call 050 123 4567  /  call Dana", "• תתקשר ל-050 123 4567  /  תתקשר לדנה"))
+                Text(L.t("• Schedule SMS to Dana at 6 pm saying I'm on my way", "• תשלח הודעה לדנה מחר בשמונה שאני מאחר"))
+                Text(L.t("• Read my summaries", "• תקריא סיכום  /  מה פספסתי?"))
+                Text(L.t("• Turn auto-answer on / off", "• תפעיל / תכבה מענה אוטומטי"))
             }
         }
         item {
-            OutlinedTextField(typed, { typed = it }, label = { Text("Or type a command") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            BigOutlined("Run", Modifier.fillMaxWidth().padding(top = 8.dp), enabled = typed.isNotBlank()) { vm.runTyped(typed); typed = "" }
+            OutlinedTextField(typed, { typed = it }, label = { Text(L.t("Or type a command", "או להקליד פקודה")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            BigOutlined(L.t("Run", "הפעל"), Modifier.fillMaxWidth().padding(top = 8.dp), enabled = typed.isNotBlank()) { vm.runTyped(typed); typed = "" }
         }
-        if (history.isNotEmpty()) item { SectionTitle("Recent") }
+        if (history.isNotEmpty()) item { SectionTitle(L.t("Recent", "אחרונות")) }
         items(history) { t ->
             InfoCard {
-                Text("You: ${t.heard}", style = MaterialTheme.typography.bodyLarge)
+                Text(L.t("You: ${t.heard}", "אתה: ${t.heard}"), style = MaterialTheme.typography.bodyLarge)
                 Text("AutoAgent: ${t.reply}", style = MaterialTheme.typography.bodyMedium)
             }
         }

@@ -1,5 +1,6 @@
 package com.autoagent.app.access
 
+import com.autoagent.app.util.L
 import android.accessibilityservice.AccessibilityService
 import android.app.KeyguardManager
 import android.content.ComponentName
@@ -72,8 +73,8 @@ class AutomationService : AccessibilityService() {
         if (!Notifier.canPost(this)) return
         val n = NotificationCompat.Builder(this, Notifier.CH_STATUS)
             .setSmallIcon(R.drawable.ic_stat_agent)
-            .setContentTitle("AutoAgent is operating ${job.appLabel}")
-            .setContentText("Sending your scheduled message to ${job.recipientLabel}")
+            .setContentTitle(L.t("AutoAgent is operating ${job.appLabel}", "AutoAgent מפעיל את ${job.appLabel}"))
+            .setContentText(L.t("Sending your scheduled message to ${job.recipientLabel}", "שולח את ההודעה המתוזמנת ל${job.recipientLabel}"))
             .setOngoing(true)
             .build()
         try { nm.notify(Notifier.ID_SEND_WORK + 100, n) } catch (_: SecurityException) {}
@@ -81,9 +82,9 @@ class AutomationService : AccessibilityService() {
 
     suspend fun performSend(job: ScheduledSend): Outcome {
         val km = getSystemService(KeyguardManager::class.java)
-        if (km.isKeyguardLocked) return abort("Phone was locked, so the screen could not be verified. Not sent.")
-        if (packageManager.getLaunchIntentForPackage(job.packageName) == null) return abort("${job.appLabel} is not installed")
-        val intent = buildIntent(job) ?: return abort("${job.appLabel} does not accept shared text")
+        if (km.isKeyguardLocked) return abort(L.t("Phone was locked, so the screen could not be verified. Not sent.", "הטלפון היה נעול ולכן אי אפשר היה לבדוק את המסך. לא נשלח."))
+        if (packageManager.getLaunchIntentForPackage(job.packageName) == null) return abort(L.t("${job.appLabel} is not installed", "${job.appLabel} לא מותקנת"))
+        val intent = buildIntent(job) ?: return abort(L.t("${job.appLabel} does not accept shared text", "${job.appLabel} לא מקבלת טקסט משותף"))
         progress(job, true)
         try {
             return drive(job, intent)
@@ -96,11 +97,11 @@ class AutomationService : AccessibilityService() {
         try {
             startActivity(intent)
         } catch (e: Exception) {
-            return abort("Could not open ${job.appLabel}: ${e.message}")
+            return abort(L.t("Could not open ${job.appLabel}: ${e.message}", "לא הצלחתי לפתוח את ${job.appLabel}: ${e.message}"))
         }
         val saved = job.text.trim()
         if (!waitFor(10_000) { rootInActiveWindow?.packageName?.toString() == job.packageName }) {
-            return abort("${job.appLabel} did not come to the foreground")
+            return abort(L.t("${job.appLabel} did not come to the foreground", "${job.appLabel} לא נפתחה על המסך"))
         }
         val directChat = job.channel == SendChannel.WHATSAPP && isPhone(job.recipient)
         var recipientChosen = directChat
@@ -113,7 +114,7 @@ class AutomationService : AccessibilityService() {
             delay(700)
             val root = rootInActiveWindow ?: continue
             if (root.packageName?.toString() != job.packageName) {
-                if (++wrongScreenCount >= 4) return abort("Screen switched to ${root.packageName}; stopped")
+                if (++wrongScreenCount >= 4) return abort(L.t("Screen switched to ${root.packageName}; stopped", "המסך עבר ל-${root.packageName}; עצרתי"))
                 continue
             }
             wrongScreenCount = 0
@@ -123,7 +124,7 @@ class AutomationService : AccessibilityService() {
 
             if (shareConfirmed && hasBubble(root, saved)) {
                 performGlobalAction(GLOBAL_ACTION_HOME)
-                return ok("Sent via ${job.appLabel}; message visible in chat")
+                return ok(L.t("Sent via ${job.appLabel}; message visible in chat", "נשלח ב-${job.appLabel}; ההודעה מופיעה בצ'אט"))
             }
 
             if (send != null && inputs.size == 1) {
@@ -131,32 +132,32 @@ class AutomationService : AccessibilityService() {
                 val current = if (input.isShowingHintText) "" else input.text?.toString()?.trim().orEmpty()
                 when {
                     current == saved -> {
-                        if (!clickNode(send)) return fail("Send button did not accept the tap")
+                        if (!clickNode(send)) return fail(L.t("Send button did not accept the tap", "כפתור השליחה לא הגיב ללחיצה"))
                         delay(1500)
                         val after = rootInActiveWindow
                         val stillThere = after != null && collect(after) { it.isEditable && it.isVisibleToUser }
                             .any { !it.isShowingHintText && it.text?.toString()?.trim() == saved }
-                        if (stillThere) return fail("Tapped Send but the text is still in the box; not retrying")
+                        if (stillThere) return fail(L.t("Tapped Send but the text is still in the box; not retrying", "לחצתי שלח אבל הטקסט עדיין בתיבה; לא מנסה שוב"))
                         performGlobalAction(GLOBAL_ACTION_HOME)
-                        return ok("Sent via ${job.appLabel}")
+                        return ok(L.t("Sent via ${job.appLabel}", "נשלח ב-${job.appLabel}"))
                     }
                     current.isEmpty() && recipientChosen && !textFilledByUs && !shareConfirmed -> {
                         val args = Bundle().apply {
                             putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, job.text)
                         }
                         if (!input.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) {
-                            return abort("Could not paste the saved text into ${job.appLabel}")
+                            return abort(L.t("Could not paste the saved text into ${job.appLabel}", "לא הצלחתי להדביק את הטקסט השמור ב-${job.appLabel}"))
                         }
                         textFilledByUs = true
                         continue
                     }
                     current.isEmpty() -> continue
-                    else -> return abort("Text box shows different text than your saved message; not sent")
+                    else -> return abort(L.t("Text box shows different text than your saved message; not sent", "בתיבת הטקסט יש טקסט שונה מההודעה ששמרת; לא נשלח"))
                 }
             }
 
             if (send != null && inputs.isEmpty() && recipientChosen && !directChat && !shareConfirmed) {
-                if (!clickNode(send)) return fail("Send button did not accept the tap")
+                if (!clickNode(send)) return fail(L.t("Send button did not accept the tap", "כפתור השליחה לא הגיב ללחיצה"))
                 shareConfirmed = true
                 continue
             }
@@ -168,15 +169,15 @@ class AutomationService : AccessibilityService() {
                         (it.text?.toString()?.trim()?.equals(label, ignoreCase = true) == true)
                 }
                 when {
-                    matches.size > 1 -> return abort("More than one \"$label\" on screen; not guessing")
+                    matches.size > 1 -> return abort(L.t("More than one \"$label\" on screen; not guessing", "יש יותר מ-\"$label\" אחד על המסך; לא מנחש"))
                     matches.size == 1 -> {
-                        if (!clickNode(matches[0])) return abort("Could not select \"$label\"")
+                        if (!clickNode(matches[0])) return abort(L.t("Could not select \"$label\"", "לא הצלחתי לבחור את \"$label\""))
                         recipientChosen = true
                     }
                 }
             }
         }
-        return abort("Screen never matched the expected chat with your saved text (30s)")
+        return abort(L.t("Screen never matched the expected chat with your saved text (30s)", "המסך לא התאים לצ'אט הצפוי עם הטקסט השמור (30 שניות)"))
     }
 
     private suspend fun waitFor(timeoutMs: Long, cond: () -> Boolean): Boolean {

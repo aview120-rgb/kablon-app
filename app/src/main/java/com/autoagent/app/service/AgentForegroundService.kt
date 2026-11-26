@@ -1,5 +1,6 @@
 package com.autoagent.app.service
 
+import com.autoagent.app.util.L
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -18,11 +19,11 @@ class AgentForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val text = intent?.getStringExtra(EXTRA_TEXT) ?: "AutoAgent is active"
+        val text = intent?.getStringExtra(EXTRA_TEXT) ?: L.t("AutoAgent is active", "AutoAgent פעיל")
         val listening = intent?.getBooleanExtra(EXTRA_LISTENING, false) == true
         val n = NotificationCompat.Builder(this, Notifier.CH_STATUS)
             .setSmallIcon(R.drawable.ic_stat_agent)
-            .setContentTitle(if (listening) "AutoAgent is listening (microphone on)" else "AutoAgent is waiting")
+            .setContentTitle(if (listening) L.t("AutoAgent is listening (microphone on)", "AutoAgent מקשיב (המיקרופון פועל)") else L.t("AutoAgent is waiting", "AutoAgent ממתין"))
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setOngoing(true)

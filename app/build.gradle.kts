@@ -37,6 +37,10 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
     packaging {
         resources {
             excludes += setOf(
@@ -77,4 +81,5 @@ dependencies {
     implementation(libs.android.mail)
     implementation(libs.android.activation)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    testImplementation(libs.junit)
 }

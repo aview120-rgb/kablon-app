@@ -1,5 +1,6 @@
 package com.autoagent.app.receipts
 
+import com.autoagent.app.util.L
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -34,9 +35,9 @@ class ShareReceiverActivity : ComponentActivity() {
                 )
                 null
             } catch (e: Exception) {
-                "Could not import: ${e.message}"
+                L.t("Could not import: ${e.message}", "הייבוא נכשל: ${e.message}")
             }
-            msg?.let { Notifier.event(this@ShareReceiverActivity, "Receipt import failed", it, "receipts") }
+            msg?.let { Notifier.event(this@ShareReceiverActivity, L.t("Receipt import failed", "ייבוא הקבלה נכשל"), it, "receipts") }
             finish()
         }
     }

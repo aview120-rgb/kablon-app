@@ -32,6 +32,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.autoagent.app.ui.InfoCard
+import com.autoagent.app.util.L
+import com.autoagent.app.voice.SpeechSupport
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import com.autoagent.app.ui.Permissions
 import com.autoagent.app.ui.StatusDot
 import com.autoagent.app.ui.theme.Ok
@@ -43,14 +47,18 @@ fun PermissionsScreen() {
     val context = LocalContext.current
     var tick by remember { mutableIntStateOf(0) }
     var note by remember { mutableStateOf<String?>(null) }
-    val items = remember(tick) { Permissions.items(context) }
+    val pack by SpeechSupport.offlinePack.collectAsState()
+    val voice by SpeechSupport.ttsVoice.collectAsState()
+    val items = remember(tick, pack, voice) { Permissions.items(context) }
     LifecycleResumeEffect(Unit) {
         tick++
+        SpeechSupport.refresh(context)
         onPauseOrDispose { }
     }
+    LaunchedEffect(tick) { SpeechSupport.refreshTts(context) }
     val runtime = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         tick++
-        if (it.values.any { granted -> !granted }) note = "Some permissions were denied. If Android stops asking, open App info → Permissions."
+        if (it.values.any { granted -> !granted }) note = L.t("Some permissions were denied. If Android stops asking, open App info → Permissions.", "חלק מההרשאות נדחו. אם אנדרואיד מפסיק לשאול, צריך לפתוח פרטי האפליקציה ← הרשאות.")
     }
     val forResult = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { tick++ }
 
@@ -68,15 +76,16 @@ fun PermissionsScreen() {
             is Permissions.Grant.Screen -> open(g.intent)
             Permissions.Grant.DialerRole -> open(Permissions.dialerRoleIntent(context))
             Permissions.Grant.SpeechPack -> {
-                if (Build.VERSION.SDK_INT >= 33 && SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
-                    val r = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
-                    r.triggerModelDownload(
-                        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+                if (SpeechSupport.download(context)) {
+                    note = L.t(
+                        "Asked Android to download the offline speech pack for English. Come back here in a minute to see it turn green.",
+                        "ביקשתי מאנדרואיד להוריד את חבילת זיהוי הדיבור בעברית. כדאי לחזור לכאן בעוד דקה ולראות שזה הפך לירוק.",
                     )
-                    r.destroy()
-                    note = "Asked Android to download the offline speech pack for ${Locale.getDefault().displayLanguage}."
                 } else {
-                    note = "Open your keyboard/voice settings (e.g. Settings → System → Languages → On-device speech recognition) and download your language."
+                    note = L.t(
+                        "Open voice settings (e.g. Settings → System → Languages → On-device speech recognition) and download your language.",
+                        "צריך לפתוח את הגדרות הקול (למשל הגדרות ← מערכת ← שפות ← זיהוי דיבור במכשיר) ולהוריד עברית.",
+                    )
                     open(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS))
                 }
             }
@@ -87,7 +96,7 @@ fun PermissionsScreen() {
     val ready = items.count { it.granted }
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
-            Text("$ready of ${items.size} ready", style = MaterialTheme.typography.titleLarge, color = if (ready == items.size) Ok else Warn,
+            Text(L.t("$ready of ${items.size} ready", "$ready מתוך ${items.size} מוכנים"), style = MaterialTheme.typography.titleLarge, color = if (ready == items.size) Ok else Warn,
                 modifier = Modifier.padding(top = 12.dp))
             note?.let { Text(it, color = Warn) }
         }
@@ -101,16 +110,29 @@ fun PermissionsScreen() {
                     }
                 }
                 if (!p.granted && p.grant != Permissions.Grant.None) {
-                    Button(onClick = { grant(p) }, modifier = Modifier.heightIn(min = 56.dp)) { Text("Grant") }
+                    Button(onClick = { grant(p) }, modifier = Modifier.heightIn(min = 56.dp)) { Text(L.t("Grant", "אישור")) }
                 }
             }
         }
         item {
             InfoCard {
-                Text("What Android will not allow", style = MaterialTheme.typography.titleMedium)
-                Text("• Regular apps cannot play audio into the call uplink or record call audio (needs system-only CAPTURE_AUDIO_OUTPUT). AutoAgent uses speakerphone and saves the transcript; it shows why when audio is missing.")
-                Text("• Sideloaded apps on Android 13+ must allow \"restricted settings\" before Accessibility and Notification access can be turned on.")
-                Text("• Sending in WhatsApp/other apps needs the screen unlocked; when locked, the send is aborted and you are notified.")
+                Text(L.t("What Android will not allow", "מה אנדרואיד לא מאפשר"), style = MaterialTheme.typography.titleMedium)
+                Text(L.t(
+                    "• Regular apps cannot play audio into the call uplink or record call audio (needs system-only CAPTURE_AUDIO_OUTPUT). AutoAgent uses speakerphone and saves the transcript; it shows why when audio is missing.",
+                    "• אפליקציות רגילות לא יכולות להשמיע קול לתוך השיחה או להקליט אותה (נדרשת הרשאת מערכת CAPTURE_AUDIO_OUTPUT). AutoAgent משתמש ברמקול ושומר תמלול, ומציג את הסיבה כשאין קול.",
+                ))
+                Text(L.t(
+                    "• Sideloaded apps on Android 13+ must allow \"restricted settings\" before Accessibility and Notification access can be turned on.",
+                    "• באפליקציה שהותקנה מקובץ, באנדרואיד 13 ומעלה צריך לאשר \"הגדרות מוגבלות\" לפני שאפשר להפעיל נגישות וגישה להתראות.",
+                ))
+                Text(L.t(
+                    "• Sending in WhatsApp/other apps needs the screen unlocked; when locked, the send is aborted and you are notified.",
+                    "• שליחה בוואטסאפ ובאפליקציות אחרות דורשת מסך לא נעול; כשהמסך נעול השליחה מבוטלת ותקבל התראה.",
+                ))
+                Text(L.t(
+                    "• Reading text from receipt photos (ML Kit) supports Latin letters only, not Hebrew. Dictate Hebrew receipts instead.",
+                    "• קריאת טקסט מתמונת קבלה (ML Kit של Google) תומכת רק באותיות לטיניות, לא בעברית. קבלות בעברית עדיף להכתיב בקול.",
+                ))
             }
         }
         item { Text(" ") }

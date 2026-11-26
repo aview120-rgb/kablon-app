@@ -1,5 +1,6 @@
 package com.autoagent.app.alarm
 
+import com.autoagent.app.util.L
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
@@ -32,17 +33,17 @@ class AlarmRingService : Service() {
             ACTION_DISMISS -> { stopRinging(); return START_NOT_STICKY }
             ACTION_SNOOZE -> {
                 val app = applicationContext as AutoAgentApp
-                val lbl = label.ifBlank { intent.getStringExtra(EXTRA_LABEL) ?: "Alarm" }
+                val lbl = label.ifBlank { intent.getStringExtra(EXTRA_LABEL) ?: L.t("Alarm", "שעון מעורר") }
                 app.appScope.launch {
                     val at = System.currentTimeMillis() + SNOOZE_MS
-                    val id = app.db.alarms().insert(AlarmEntity(triggerAt = at, label = "$lbl (snoozed)"))
-                    AlarmScheduler.schedule(app, AlarmEntity(id = id, triggerAt = at, label = "$lbl (snoozed)"))
+                    val id = app.db.alarms().insert(AlarmEntity(triggerAt = at, label = L.t("$lbl (snoozed)", "$lbl (נודניק)")))
+                    AlarmScheduler.schedule(app, AlarmEntity(id = id, triggerAt = at, label = L.t("$lbl (snoozed)", "$lbl (נודניק)")))
                 }
                 stopRinging()
                 return START_NOT_STICKY
             }
         }
-        label = intent?.getStringExtra(EXTRA_LABEL) ?: "Alarm"
+        label = intent?.getStringExtra(EXTRA_LABEL) ?: L.t("Alarm", "שעון מעורר")
         val fullScreen = PendingIntent.getActivity(
             this, 1,
             Intent(this, AlarmActivity::class.java).putExtra(EXTRA_LABEL, label)
@@ -51,15 +52,15 @@ class AlarmRingService : Service() {
         )
         val notification = NotificationCompat.Builder(this, Notifier.CH_ALARM)
             .setSmallIcon(R.drawable.ic_stat_agent)
-            .setContentTitle("Alarm")
+            .setContentTitle(L.t("Alarm", "שעון מעורר"))
             .setContentText(label)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setFullScreenIntent(fullScreen, true)
             .setContentIntent(fullScreen)
             .setOngoing(true)
-            .addAction(0, "Snooze 10 min", actionIntent(ACTION_SNOOZE, 2))
-            .addAction(0, "Dismiss", actionIntent(ACTION_DISMISS, 3))
+            .addAction(0, L.t("Snooze 10 min", "נודניק 10 דק'"), actionIntent(ACTION_SNOOZE, 2))
+            .addAction(0, L.t("Dismiss", "כיבוי"), actionIntent(ACTION_DISMISS, 3))
             .build()
         val type = if (Build.VERSION.SDK_INT >= 29) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0
         ServiceCompat.startForeground(this, Notifier.ID_ALARM_RING, notification, type)

@@ -29,23 +29,23 @@ object Notifier {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val nm = context.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
-            NotificationChannel(CH_STATUS, "Agent status (persistent)", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Shown while AutoAgent is listening or waiting for a schedule"
+            NotificationChannel(CH_STATUS, L.t("Agent status (persistent)", "מצב הסוכן (קבוע)"), NotificationManager.IMPORTANCE_LOW).apply {
+                description = L.t("Shown while AutoAgent is listening or waiting for a schedule", "מוצג כש-AutoAgent מקשיב או ממתין לתזמון")
             }
         )
         nm.createNotificationChannel(
-            NotificationChannel(CH_EVENTS, "Automation results", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "Every automated action (sent, aborted, answered) is reported here"
+            NotificationChannel(CH_EVENTS, L.t("Automation results", "תוצאות אוטומציה"), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = L.t("Every automated action (sent, aborted, answered) is reported here", "כל פעולה אוטומטית (נשלח, בוטל, נענה) מדווחת כאן")
             }
         )
         nm.createNotificationChannel(
-            NotificationChannel(CH_ALARM, "Alarms", NotificationManager.IMPORTANCE_HIGH).apply {
+            NotificationChannel(CH_ALARM, L.t("Alarms", "שעונים מעוררים"), NotificationManager.IMPORTANCE_HIGH).apply {
                 setSound(null, null)
                 enableVibration(true)
             }
         )
         nm.createNotificationChannel(
-            NotificationChannel(CH_CALL, "Calls", NotificationManager.IMPORTANCE_HIGH).apply {
+            NotificationChannel(CH_CALL, L.t("Calls", "שיחות"), NotificationManager.IMPORTANCE_HIGH).apply {
                 setSound(null, null)
             }
         )

@@ -1,5 +1,6 @@
 package com.autoagent.app.ui.screens
 
+import com.autoagent.app.util.L
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -56,38 +57,42 @@ fun AutoAnswerScreen(vm: AutoAnswerViewModel) {
             InfoCard(Modifier.padding(top = 12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Auto-answer unknown numbers", style = MaterialTheme.typography.titleMedium)
-                        Text("Only callers NOT in your contacts. Hidden numbers are never answered.", style = MaterialTheme.typography.bodyMedium)
+                        Text(L.t("Auto-answer unknown numbers", "מענה אוטומטי למספרים לא מוכרים"), style = MaterialTheme.typography.titleMedium)
+                        Text(L.t("Only callers NOT in your contacts. Hidden numbers are never answered.", "רק למתקשרים שלא באנשי הקשר. מספרים חסויים אף פעם לא נענים."), style = MaterialTheme.typography.bodyMedium)
                     }
                     Switch(checked = s.autoAnswerEnabled, onCheckedChange = vm::setEnabled)
                 }
-                Text("Ring for ${s.autoAnswerDelaySec}s first (you can still pick up)")
+                Text(L.t("Ring for ${s.autoAnswerDelaySec}s first (you can still pick up)", "קודם לצלצל ${s.autoAnswerDelaySec} שניות (אפשר עדיין לענות בעצמך)"))
                 Slider(value = s.autoAnswerDelaySec.toFloat(), onValueChange = { vm.setDelay(it.toInt()) }, valueRange = 0f..30f, steps = 29)
-                Text("Caller turns before closing: ${s.maxTurns}")
+                Text(L.t("Caller turns before closing: ${s.maxTurns}", "מספר תורות של המתקשר לפני סיום: ${s.maxTurns}"))
                 Slider(value = s.maxTurns.toFloat(), onValueChange = { vm.setTurns(it.toInt()) }, valueRange = 1f..6f, steps = 4)
                 msg?.let { Text(it, color = Warn, modifier = Modifier.clickable { vm.message.value = null }) }
             }
         }
         item {
             InfoCard {
-                Text("Script", style = MaterialTheme.typography.titleMedium)
-                Text("1. \"${CallBrain.GREETING}\"  (always first)")
+                Text(L.t("Script", "תסריט"), style = MaterialTheme.typography.titleMedium)
+                Text("1. \"${CallBrain.GREETING}\"  " + L.t("(always first)", "(תמיד ראשון)"))
                 Text("2. \"${CallBrain.ASK}\"")
-                Text("3. Reply from the keyword rules below; unknown → \"${CallBrain.UNKNOWN_REPLY}\"")
+                Text(L.t("3. Reply from the keyword rules below; unknown → ", "3. תשובה לפי כללי מילות המפתח למטה; לא מזוהה ← ") + "\"${CallBrain.UNKNOWN_REPLY}\"")
                 Text("4. \"${CallBrain.CLOSING}\"")
                 Text(
-                    "Android does not let regular apps play audio into the call or capture call audio. AutoAgent switches to " +
-                        "speakerphone and speaks beside the microphone. If the OS blocks call audio, only the transcript is saved and the reason is shown.",
+                    L.t(
+                        "Android does not let regular apps play audio into the call or capture call audio. AutoAgent switches to " +
+                            "speakerphone and speaks beside the microphone. If the OS blocks call audio, only the transcript is saved and the reason is shown.",
+                        "אנדרואיד לא מאפשר לאפליקציות רגילות להשמיע קול לתוך השיחה או להקליט אותה. AutoAgent עובר לרמקול " +
+                            "ומדבר ליד המיקרופון. אם המערכת חוסמת את קול השיחה, נשמר רק התמלול ומוצגת הסיבה.",
+                    ),
                     style = MaterialTheme.typography.bodyMedium, color = Warn,
                 )
-                BigOutlined("Run a test call (self-managed line)", Modifier.fillMaxWidth()) { vm.testCall() }
+                BigOutlined(L.t("Run a test call (self-managed line)", "הפעלת שיחת בדיקה (קו בדיקה פנימי)"), Modifier.fillMaxWidth()) { vm.testCall() }
             }
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                SectionTitle("Keyword rules")
+                SectionTitle(L.t("Keyword rules", "כללי מילות מפתח"))
                 Text("", Modifier.weight(1f))
-                TextButton(onClick = { editing = KeywordRule(intent = RuleIntent.CUSTOM, keywords = "", response = "") }) { Text("Add rule") }
+                TextButton(onClick = { editing = KeywordRule(intent = RuleIntent.CUSTOM, keywords = "", response = "") }) { Text(L.t("Add rule", "הוספת כלל")) }
             }
         }
         items(rules, key = { "r${it.id}" }) { r ->
@@ -96,12 +101,12 @@ fun AutoAnswerScreen(vm: AutoAnswerViewModel) {
                     Text(r.intent, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     Switch(checked = r.enabled, onCheckedChange = { vm.saveRule(r.copy(enabled = it)) })
                 }
-                Text("If caller says: ${r.keywords}", style = MaterialTheme.typography.bodyMedium)
-                Text("Reply: ${r.response}", style = MaterialTheme.typography.bodyMedium)
+                Text(L.t("If caller says: ${r.keywords}", "אם המתקשר אומר: ${r.keywords}"), style = MaterialTheme.typography.bodyMedium)
+                Text(L.t("Reply: ", "תשובה: ") + if (L.hebrew && r.responseHe.isNotBlank()) r.responseHe else r.response, style = MaterialTheme.typography.bodyMedium)
             }
         }
-        item { SectionTitle("Answered calls") }
-        if (records.isEmpty()) item { Text("No assistant calls yet.") }
+        item { SectionTitle(L.t("Answered calls", "שיחות שנענו")) }
+        if (records.isEmpty()) item { Text(L.t("No assistant calls yet.", "עדיין אין שיחות שהעוזר ענה להן.")) }
         items(records, key = { "c${it.id}" }) { r -> RecordCard(r, playing == r.id, vm) }
         item { Text(" ") }
     }
@@ -113,19 +118,19 @@ fun AutoAnswerScreen(vm: AutoAnswerViewModel) {
 private fun RecordCard(r: CallRecord, isPlaying: Boolean, vm: AutoAnswerViewModel) {
     InfoCard {
         Row {
-            Text(if (r.isTest) "Test call" else r.number, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Text(if (r.isTest) L.t("Test call", "שיחת בדיקה") else r.number, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             Text(TimeText.format(r.startedAt))
         }
-        if (r.intents.isNotBlank()) Text("Intents: ${r.intents}", style = MaterialTheme.typography.bodyMedium)
-        Text(r.transcript.ifBlank { "(no transcript)" }, style = MaterialTheme.typography.bodyMedium)
+        if (r.intents.isNotBlank()) Text(L.t("Intents: ${r.intents}", "כוונות: ${r.intents}"), style = MaterialTheme.typography.bodyMedium)
+        Text(r.transcript.ifBlank { L.t("(no transcript)", "(אין תמלול)") }, style = MaterialTheme.typography.bodyMedium)
         Text(r.audioNote, style = MaterialTheme.typography.bodyMedium, color = if (r.audioPath != null) Ok else Warn)
         ButtonRow {
-            if (!r.isTest) BigButton("Call back", Modifier.weight(1f)) { vm.callBack(r) }
-            if (r.audioPath != null && File(r.audioPath).exists()) BigOutlined(if (isPlaying) "Stop" else "Play", Modifier.weight(1f)) { vm.togglePlay(r) }
+            if (!r.isTest) BigButton(L.t("Call back", "לחזור"), Modifier.weight(1f)) { vm.callBack(r) }
+            if (r.audioPath != null && File(r.audioPath).exists()) BigOutlined(if (isPlaying) L.t("Stop", "עצירה") else L.t("Play", "השמעה"), Modifier.weight(1f)) { vm.togglePlay(r) }
         }
         ButtonRow {
-            if (!r.callbackDone && !r.isTest) BigOutlined("Mark done", Modifier.weight(1f)) { vm.markDone(r) }
-            BigOutlined("Delete", Modifier.weight(1f)) { vm.deleteRecord(r) }
+            if (!r.callbackDone && !r.isTest) BigOutlined(L.t("Mark done", "סימון כטופל"), Modifier.weight(1f)) { vm.markDone(r) }
+            BigOutlined(L.t("Delete", "מחיקה"), Modifier.weight(1f)) { vm.deleteRecord(r) }
         }
     }
 }
@@ -135,28 +140,38 @@ private fun RuleEditor(rule: KeywordRule, onDismiss: () -> Unit, onSave: (Keywor
     var intent by remember { mutableStateOf(rule.intent) }
     var keywords by remember { mutableStateOf(rule.keywords) }
     var response by remember { mutableStateOf(rule.response) }
+    var responseHe by remember { mutableStateOf(rule.responseHe) }
     var priority by remember { mutableStateOf(rule.priority.toString()) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (rule.id == 0L) "New rule" else "Edit rule") },
+        title = { Text(if (rule.id == 0L) L.t("New rule", "כלל חדש") else L.t("Edit rule", "עריכת כלל")) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(intent, { intent = it.uppercase().replace(' ', '_') }, label = { Text("Intent name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(keywords, { keywords = it }, label = { Text("Keywords, comma separated") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(response, { response = it }, label = { Text("Spoken reply") }, minLines = 2, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(priority, { priority = it.filter(Char::isDigit).take(3) }, label = { Text("Priority (higher first)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(intent, { intent = it.uppercase().replace(' ', '_') }, label = { Text(L.t("Intent name", "שם הכוונה")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(keywords, { keywords = it }, label = { Text(L.t("Keywords, comma separated", "מילות מפתח, מופרדות בפסיק")) }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(responseHe, { responseHe = it }, label = { Text(L.t("Spoken reply (Hebrew)", "תשובה מוקראת (עברית)")) }, minLines = 2, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(response, { response = it }, label = { Text(L.t("Spoken reply (English)", "תשובה מוקראת (אנגלית)")) }, minLines = 2, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(priority, { priority = it.filter(Char::isDigit).take(3) }, label = { Text(L.t("Priority (higher first)", "עדיפות (גבוה קודם)")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
             }
         },
         confirmButton = {
             TextButton(
-                enabled = keywords.isNotBlank() && response.isNotBlank() && intent.isNotBlank(),
-                onClick = { onSave(rule.copy(intent = intent, keywords = keywords, response = response, priority = priority.toIntOrNull() ?: 0)) },
-            ) { Text("Save") }
+                enabled = keywords.isNotBlank() && (response.isNotBlank() || responseHe.isNotBlank()) && intent.isNotBlank(),
+                onClick = {
+                    onSave(
+                        rule.copy(
+                            intent = intent, keywords = keywords,
+                            response = response.ifBlank { responseHe }, responseHe = responseHe,
+                            priority = priority.toIntOrNull() ?: 0,
+                        )
+                    )
+                },
+            ) { Text(L.t("Save", "שמירה")) }
         },
         dismissButton = {
             Row {
-                if (rule.id != 0L) TextButton(onClick = { onDelete(rule) }) { Text("Delete") }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                if (rule.id != 0L) TextButton(onClick = { onDelete(rule) }) { Text(L.t("Delete", "מחיקה")) }
+                TextButton(onClick = onDismiss) { Text(L.t("Cancel", "ביטול")) }
             }
         },
     )

@@ -7,10 +7,10 @@ import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import com.autoagent.app.util.L
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
-import java.util.Locale
 import kotlin.coroutines.resume
 
 /**
@@ -74,7 +74,8 @@ class SpeechListener(private val context: Context) {
                 })
                 val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, com.autoagent.app.util.L.speechTag)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, com.autoagent.app.util.L.speechTag)
                     putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
@@ -101,18 +102,18 @@ class SpeechListener(private val context: Context) {
     companion object {
         fun errorText(code: Int?): String = when (code) {
             null -> ""
-            SpeechRecognizer.ERROR_AUDIO -> "audio capture error (microphone busy or blocked during call)"
-            SpeechRecognizer.ERROR_CLIENT -> "speech recognizer unavailable"
-            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "microphone permission missing"
-            SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "offline language pack missing (recognizer wanted network)"
-            SpeechRecognizer.ERROR_NO_MATCH -> "no speech recognized"
-            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "recognizer busy"
-            SpeechRecognizer.ERROR_SERVER -> "recognizer server error"
-            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "no speech heard"
+            SpeechRecognizer.ERROR_AUDIO -> L.t("audio capture error (microphone busy or blocked during call)", "שגיאת מיקרופון (תפוס או חסום בזמן שיחה)")
+            SpeechRecognizer.ERROR_CLIENT -> L.t("speech recognizer unavailable", "זיהוי הדיבור לא זמין")
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> L.t("microphone permission missing", "אין הרשאה למיקרופון")
+            SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> L.t("offline language pack missing (recognizer wanted network)", "חסרה חבילת שפה לא מקוונת (הזיהוי ביקש אינטרנט)")
+            SpeechRecognizer.ERROR_NO_MATCH -> L.t("no speech recognized", "לא זוהה דיבור")
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> L.t("recognizer busy", "זיהוי הדיבור עסוק")
+            SpeechRecognizer.ERROR_SERVER -> L.t("recognizer server error", "שגיאת שרת בזיהוי הדיבור")
+            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> L.t("no speech heard", "לא נשמע דיבור")
             else -> if (Build.VERSION.SDK_INT >= 31 && code == SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE) {
-                "offline language pack not installed"
+                L.t("offline language pack not installed", "חבילת השפה הלא מקוונת לא מותקנת")
             } else {
-                "recognizer error $code"
+                L.t("recognizer error $code", "שגיאת זיהוי $code")
             }
         }
     }

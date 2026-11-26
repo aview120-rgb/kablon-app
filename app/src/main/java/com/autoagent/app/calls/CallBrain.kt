@@ -1,29 +1,37 @@
 package com.autoagent.app.calls
 
 import com.autoagent.app.data.KeywordRule
-import java.util.Locale
+import com.autoagent.app.util.HebrewText
+import com.autoagent.app.util.L
 
-/** Offline, rule-based replies for the call assistant. No cloud model. */
+/** Offline, rule-based replies for the call assistant (Hebrew and English). No cloud model. */
 object CallBrain {
-    const val GREETING = "This call is answered by an assistant and is recorded."
-    const val ASK = "What do you need? Please tell me now."
-    const val UNKNOWN_REPLY = "I will pass this to the owner."
-    const val ANYTHING_ELSE = "Anything else?"
-    const val CLOSING = "Thank you. The owner will call you back. Goodbye."
-    const val NOT_HEARD = "Sorry, I did not catch that. Please say it again."
+    val GREETING get() = L.t("This call is answered by an assistant and is recorded.", "השיחה נענית על ידי עוזר ומוקלטת.")
+    val ASK get() = L.t("What do you need? Please tell me now.", "במה אפשר לעזור? אפשר לדבר עכשיו.")
+    val UNKNOWN_REPLY get() = L.t("I will pass this to the owner.", "אני אעביר את זה לבעל המספר.")
+    val ANYTHING_ELSE get() = L.t("Anything else?", "יש עוד משהו?")
+    val CLOSING get() = L.t("Thank you. The owner will call you back. Goodbye.", "תודה. יחזרו אליך בהקדם. להתראות.")
+    val NOT_HEARD get() = L.t("Sorry, I did not catch that. Please say it again.", "סליחה, לא שמעתי. אפשר לחזור על זה?")
+    val SAVED get() = L.t("Got it. I saved your message.", "קיבלתי. שמרתי את ההודעה.")
     const val UNKNOWN = "UNKNOWN"
 
     data class Reply(val intent: String, val text: String)
 
-    fun reply(utterance: String, rules: List<KeywordRule>): Reply {
-        val u = " " + utterance.lowercase(Locale.ROOT).replace(Regex("""[^\p{L}\p{N}' ]"""), " ").replace(Regex("\\s+"), " ") + " "
+    fun matches(utterance: String, rule: KeywordRule): Boolean {
+        val u = HebrewText.normalize(utterance)
+        return rule.keywords.split(',')
+            .map { HebrewText.normalize(it) }
+            .filter { it.isNotEmpty() }
+            .any { HebrewText.containsPhrase(u, it) }
+    }
+
+    fun reply(utterance: String, rules: List<KeywordRule>, hebrew: Boolean = L.hebrew): Reply {
         for (rule in rules.filter { it.enabled }.sortedByDescending { it.priority }) {
-            val hit = rule.keywords.split(',')
-                .map { it.trim().lowercase(Locale.ROOT) }
-                .filter { it.isNotEmpty() }
-                .any { u.contains(" $it ") }
-            if (hit) return Reply(rule.intent, rule.response)
+            if (matches(utterance, rule)) {
+                val text = if (hebrew && rule.responseHe.isNotBlank()) rule.responseHe else rule.response
+                return Reply(rule.intent, text)
+            }
         }
-        return Reply(UNKNOWN, UNKNOWN_REPLY)
+        return Reply(UNKNOWN, if (hebrew) "אני אעביר את זה לבעל המספר." else "I will pass this to the owner.")
     }
 }

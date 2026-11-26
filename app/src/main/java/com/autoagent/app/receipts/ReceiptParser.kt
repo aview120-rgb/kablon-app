@@ -10,11 +10,12 @@ object ReceiptParser {
     private val amount = Regex("""(?<![\d.,])(\d{1,3}(?:[,\s]\d{3})*(?:[.,]\d{2})|\d+(?:[.,]\d{2})?)(?![\d])""")
     private val totalKeys = listOf(
         "grand total", "total due", "amount due", "balance due", "total to pay", "to pay", "amount paid", "total amount",
-        "total", "סה\"כ לתשלום", "סה\"כ", "סהכ", "לתשלום", "importe total", "montant total", "summe", "gesamt", "totale",
+        "total", "סה\"כ לתשלום", "סה\"כ", "סהכ", "סך הכל", "סך הכול", "בסך הכל", "בסך הכול", "לתשלום", "שולם", "שילמתי",
+        "importe total", "montant total", "summe", "gesamt", "totale",
     )
     private val skipMerchant = listOf(
         "receipt", "invoice", "tax", "vat", "date", "time", "tel", "phone", "www", "http", "@", "total", "cashier",
-        "order", "table", "קבלה", "חשבונית", "תאריך", "טלפון", "ח.פ", "עוסק",
+        "order", "table", "קבלה", "חשבונית", "תאריך", "טלפון", "ח.פ", "עוסק", "מורשה", "מס", "קופה", "קופאי", "סניף",
     )
     private val months = mapOf(
         "jan" to 0, "feb" to 1, "mar" to 2, "apr" to 3, "may" to 4, "jun" to 5,
@@ -34,14 +35,25 @@ object ReceiptParser {
     }
 
     fun findCurrency(text: String): String = when {
-        text.contains('₪') || Regex("""\b(ils|nis)\b|ש"ח|שח""", RegexOption.IGNORE_CASE).containsMatchIn(text) -> "ILS"
-        text.contains('€') || Regex("""\beur\b""", RegexOption.IGNORE_CASE).containsMatchIn(text) -> "EUR"
+        text.contains('₪') || Regex("""\b(ils|nis)\b|ש"ח|ש״ח|שח|שקל|שקלים""", RegexOption.IGNORE_CASE).containsMatchIn(text) -> "ILS"
+        text.contains('€') || Regex("""\beur\b|יורו|אירו""", RegexOption.IGNORE_CASE).containsMatchIn(text) -> "EUR"
         text.contains('£') || Regex("""\bgbp\b""", RegexOption.IGNORE_CASE).containsMatchIn(text) -> "GBP"
-        text.contains('$') || Regex("""\busd\b|dollars?""", RegexOption.IGNORE_CASE).containsMatchIn(text) -> "USD"
+        text.contains('$') || Regex("""\busd\b|dollars?|דולר""", RegexOption.IGNORE_CASE).containsMatchIn(text) -> "USD"
         else -> ""
     }
 
+    private val heMerchant = Regex(
+        """(?:קבלה|חשבונית|קניתי|שילמתי|קנייה|קניה|הוצאה|ארוחה|תדלקתי)\s+(?:מ|ב|של|ב-|מ-|אצל|ב\s|מ\s)?\s*([\u05D0-\u05EA][\u05D0-\u05EA0-9"'\s-]{1,30}?)(?=\s+(?:(?:על|ב|של|סך|סה"כ|סכום|בסך|אתמול|היום|שלשום)(?=\s|$)|\d)|\s*$|[,.])""",
+    )
+
     fun findMerchant(lines: List<String>): String {
+        // Hebrew dictation: "קבלה מסופר פארם 45 שקל", "שילמתי בשופרסל 120 שקלים".
+        lines.firstNotNullOfOrNull { l -> heMerchant.find(l)?.groupValues?.get(1)?.trim() }?.let { m ->
+            val name = m.split(Regex("\\s+")).filter { it.isNotEmpty() }.takeWhile { w ->
+                w !in setOf("אתמול", "היום", "שלשום", "שקל", "שקלים", "סך", "הכל", "על", "סכום", "בסך")
+            }.joinToString(" ")
+            if (name.length >= 2) return name.trim()
+        }
         // Dictation like "receipt from Super Pharm ..." or "at Starbucks".
         lines.firstNotNullOfOrNull { l ->
             Regex("""(?:receipt|bill|paid|invoice)?\s*(?:from|at)\s+([\p{L}][\p{L}\p{N}&' .-]{1,40}?)(?:\s+(?:for|on|total|of|,)|$)""", RegexOption.IGNORE_CASE)
@@ -83,7 +95,8 @@ object ReceiptParser {
             }
         }
         // Spoken: "total 45.90", "45 shekels", "it was 120 dollars".
-        val all = lines.flatMap { l -> amountsIn(l).filter { a -> a != a.toLong().toDouble() || l.contains(Regex("[$€£₪]|dollar|shekel|euro|nis|ils", RegexOption.IGNORE_CASE)) } }
+        val currencyWord = Regex("[$€£₪]|dollar|shekel|euro|nis|ils|שקל|ש\"ח|ש״ח|דולר|יורו|אירו", RegexOption.IGNORE_CASE)
+        val all = lines.flatMap { l -> amountsIn(l).filter { a -> a != a.toLong().toDouble() || l.contains(currencyWord) } }
         if (all.isNotEmpty()) return all.max()
         return lines.flatMap { amountsIn(it) }.filter { it < 100_000 && it.toLong().toString().length < 6 }.maxOrNull()
     }
@@ -115,8 +128,9 @@ object ReceiptParser {
             return m.value to millis(m.groupValues[3].toInt(), mo, m.groupValues[2].toInt())
         }
         val low = text.lowercase(Locale.ROOT)
-        if (low.contains("today")) return "today" to System.currentTimeMillis()
-        if (low.contains("yesterday")) return "yesterday" to System.currentTimeMillis() - 86_400_000L
+        if (low.contains("today") || low.contains("היום")) return "today" to System.currentTimeMillis()
+        if (low.contains("yesterday") || low.contains("אתמול")) return "yesterday" to System.currentTimeMillis() - 86_400_000L
+        if (low.contains("שלשום")) return "2 days ago" to System.currentTimeMillis() - 2 * 86_400_000L
         return "" to null
     }
 

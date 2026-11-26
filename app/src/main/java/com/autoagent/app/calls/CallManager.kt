@@ -1,5 +1,6 @@
 package com.autoagent.app.calls
 
+import com.autoagent.app.util.L
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.VideoProfile
@@ -89,14 +90,14 @@ object CallManager {
     fun setMuted(muted: Boolean) { service?.setMuted(muted) }
 
     fun stateLabel(state: Int): String = when (state) {
-        Call.STATE_RINGING -> "Ringing"
-        Call.STATE_DIALING -> "Dialing"
-        Call.STATE_CONNECTING -> "Connecting"
-        Call.STATE_ACTIVE -> "Active"
-        Call.STATE_HOLDING -> "On hold"
-        Call.STATE_DISCONNECTING -> "Ending"
-        Call.STATE_DISCONNECTED -> "Ended"
-        Call.STATE_SELECT_PHONE_ACCOUNT -> "Choose SIM"
-        else -> "State $state"
+        Call.STATE_RINGING -> L.t("Ringing", "מצלצל")
+        Call.STATE_DIALING -> L.t("Dialing", "מחייג")
+        Call.STATE_CONNECTING -> L.t("Connecting", "מתחבר")
+        Call.STATE_ACTIVE -> L.t("Active", "פעילה")
+        Call.STATE_HOLDING -> L.t("On hold", "בהמתנה")
+        Call.STATE_DISCONNECTING -> L.t("Ending", "מסתיימת")
+        Call.STATE_DISCONNECTED -> L.t("Ended", "הסתיימה")
+        Call.STATE_SELECT_PHONE_ACCOUNT -> L.t("Choose SIM", "בחירת SIM")
+        else -> L.t("State $state", "מצב $state")
     }
 }

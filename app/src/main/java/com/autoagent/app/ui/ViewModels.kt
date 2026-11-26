@@ -23,6 +23,7 @@ import com.autoagent.app.receipts.ImapWorker
 import com.autoagent.app.receipts.ReceiptIngest
 import com.autoagent.app.schedule.SendScheduler
 import com.autoagent.app.service.AgentStatus
+import com.autoagent.app.util.L
 import com.autoagent.app.util.TimeText
 import com.autoagent.app.voice.Speaker
 import com.autoagent.app.voice.SpeechListener
@@ -54,22 +55,30 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         app.db.sends().observeAll(),
         app.db.calls().observeAll(),
         app.settings.state,
-    ) { alarms, sends, calls, settings ->
+        L.hebrewFlow,
+    ) { alarms, sends, calls, settings, _ ->
         val now = System.currentTimeMillis()
         val out = mutableListOf<NextAction>()
         calls.filter { !it.callbackDone && !it.isTest }.take(5).forEach {
-            out += NextAction(it.startedAt, "Call back ${it.number}", it.transcript.lines().lastOrNull { l -> l.startsWith("Caller:") }?.removePrefix("Caller:")?.trim() ?: "Assistant took this call", "autoanswer", it.number)
+            val last = it.transcript.lines().lastOrNull { l -> l.startsWith("Caller:") || l.startsWith("מתקשר:") }?.substringAfter(':')?.trim()
+            out += NextAction(it.startedAt, L.t("Call back ${it.number}", "לחזור ל-${it.number}"), last ?: L.t("Assistant took this call", "העוזר ענה לשיחה הזו"), "autoanswer", it.number)
         }
         sends.filter { it.status == SendStatus.PENDING }.sortedBy { it.sendAt }.take(5).forEach {
             out += NextAction(it.sendAt, "${it.appLabel} → ${it.recipientLabel}", it.text.take(80), "schedules")
         }
         sends.filter { it.status == SendStatus.ABORTED || it.status == SendStatus.FAILED }.filter { now - it.sendAt < 86_400_000L }.take(3).forEach {
-            out += NextAction(it.sendAt, "Not sent: ${it.recipientLabel}", it.resultNote, "schedules")
+            out += NextAction(it.sendAt, L.t("Not sent: ${it.recipientLabel}", "לא נשלח: ${it.recipientLabel}"), it.resultNote, "schedules")
         }
         alarms.filter { it.enabled && it.triggerAt > now }.take(3).forEach {
-            out += NextAction(it.triggerAt, "Alarm: ${it.label}", TimeText.format(it.triggerAt), "schedules")
+            out += NextAction(it.triggerAt, L.t("Alarm: ${it.label}", "שעון מעורר: ${it.label}"), TimeText.format(it.triggerAt), "schedules")
         }
-        out += NextAction(null, "Auto-answer is ${if (settings.autoAnswerEnabled) "ON" else "OFF"}", if (settings.autoAnswerEnabled) "Unknown numbers get the assistant after ${settings.autoAnswerDelaySec}s" else "Tap to configure", "autoanswer")
+        out += NextAction(
+            null,
+            if (settings.autoAnswerEnabled) L.t("Auto-answer is ON", "מענה אוטומטי פועל") else L.t("Auto-answer is OFF", "מענה אוטומטי כבוי"),
+            if (settings.autoAnswerEnabled) L.t("Unknown numbers get the assistant after ${settings.autoAnswerDelaySec}s", "מספרים לא מוכרים יקבלו את העוזר אחרי ${settings.autoAnswerDelaySec} שניות")
+            else L.t("Tap to configure", "הקש להגדרה"),
+            "autoanswer",
+        )
         out
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -82,6 +91,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun refreshService() = viewModelScope.launch { AgentStatus.refresh(app) }
+
+    val language = app.settings.state.map { it.language }.stateIn(viewModelScope, SharingStarted.Eagerly, app.settings.current.language)
+
+    /** Cycles auto → Hebrew → English → auto. */
+    fun cycleLanguage() {
+        val next = when (app.settings.current.language) { L.AUTO -> L.HE; L.HE -> L.EN; else -> L.AUTO }
+        app.settings.setLanguage(next)
+        com.autoagent.app.util.Notifier.createChannels(app)
+        viewModelScope.launch { AgentStatus.refresh(app) }
+    }
 }
 
 /* ---------------- Schedules ---------------- */
@@ -112,8 +131,8 @@ class SchedulesViewModel(application: Application) : AndroidViewModel(applicatio
     fun schedule(send: ScheduledSend, onDone: () -> Unit) = viewModelScope.launch {
         when (val r = SendScheduler.create(app, send)) {
             is SendScheduler.CreateResult.Ok -> {
-                message.value = if (r.exact) "Scheduled for ${TimeText.format(send.sendAt)}" else
-                    "Scheduled, but exact alarms are off so it may be a few minutes late. Enable it in Permissions."
+                message.value = if (r.exact) L.t("Scheduled for ${TimeText.format(send.sendAt)}", "תוזמן ל-${TimeText.format(send.sendAt)}") else
+                    L.t("Scheduled, but exact alarms are off so it may be a few minutes late. Enable it in Permissions.", "תוזמן, אבל שעונים מדויקים כבויים ולכן זה עלול להתאחר בכמה דקות. אפשר להפעיל במסך ההרשאות.")
                 onDone()
             }
             is SendScheduler.CreateResult.Rejected -> message.value = r.reason
@@ -128,16 +147,16 @@ class SchedulesViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun addAlarm(at: Long, label: String) = viewModelScope.launch {
-        val a = AlarmEntity(triggerAt = at, label = label.ifBlank { "Alarm" })
+        val a = AlarmEntity(triggerAt = at, label = label.ifBlank { L.t("Alarm", "שעון מעורר") })
         val id = withContext(Dispatchers.IO) { app.db.alarms().insert(a) }
-        message.value = if (AlarmScheduler.schedule(app, a.copy(id = id))) "Alarm set for ${TimeText.format(at)}"
-        else "Alarm saved but exact alarms are not allowed. Enable \"Alarms & reminders\" in Permissions."
+        message.value = if (AlarmScheduler.schedule(app, a.copy(id = id))) L.t("Alarm set for ${TimeText.format(at)}", "שעון מעורר נקבע ל-${TimeText.format(at)}")
+        else L.t("Alarm saved but exact alarms are not allowed. Enable \"Alarms & reminders\" in Permissions.", "השעון נשמר, אבל אין הרשאה לשעונים מדויקים. צריך להפעיל \"שעונים ותזכורות\" במסך ההרשאות.")
         AgentStatus.refresh(app)
     }
 
     fun toggleAlarm(a: AlarmEntity, on: Boolean) = viewModelScope.launch {
         if (on && a.triggerAt <= System.currentTimeMillis()) {
-            message.value = "That time has passed; add a new alarm"
+            message.value = L.t("That time has passed; add a new alarm", "השעה הזו כבר עברה; צריך להוסיף שעון חדש")
             return@launch
         }
         withContext(Dispatchers.IO) { app.db.alarms().update(a.copy(enabled = on)) }
@@ -167,7 +186,7 @@ class AutoAnswerViewModel(application: Application) : AndroidViewModel(applicati
         app.settings.setAutoAnswer(on)
         app.log("autoanswer", "Auto-answer turned ${if (on) "on" else "off"}", true)
         viewModelScope.launch { AgentStatus.refresh(app) }
-        if (on && !PhoneAccounts.isDefaultDialer(app)) message.value = "Auto-answer needs AutoAgent as the default phone app (see Permissions)."
+        if (on && !PhoneAccounts.isDefaultDialer(app)) message.value = L.t("Auto-answer needs AutoAgent as the default phone app (see Permissions).", "מענה אוטומטי דורש ש-AutoAgent תהיה אפליקציית הטלפון הראשית (במסך ההרשאות).")
     }
 
     fun setDelay(sec: Int) = app.settings.setAutoAnswerDelay(sec)
@@ -191,7 +210,7 @@ class AutoAnswerViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun testCall() {
-        message.value = PhoneAccounts.startTestCall(app) ?: "Test call started: the assistant speaks on your speaker; play the caller."
+        message.value = PhoneAccounts.startTestCall(app) ?: L.t("Test call started: the assistant speaks on your speaker; play the caller.", "שיחת הבדיקה התחילה: העוזר מדבר ברמקול, ואתה משחק את המתקשר.")
     }
 
     fun togglePlay(r: CallRecord) {
@@ -268,7 +287,7 @@ class ReceiptsViewModel(application: Application) : AndroidViewModel(application
         if (!handled.add(path)) return
         viewModelScope.launch {
             busy.value = true
-            message.value = if (isAudio) "Transcribing voice note on-device…" else "Reading receipt on-device…"
+            message.value = if (isAudio) L.t("Transcribing voice note on-device…", "מתמלל את ההקלטה במכשיר…") else L.t("Reading receipt on-device…", "קורא את הקבלה במכשיר…")
             val out = ReceiptIngest.ingestFile(app, File(path), isAudio)
             message.value = out.message
             busy.value = false
@@ -278,13 +297,13 @@ class ReceiptsViewModel(application: Application) : AndroidViewModel(application
     fun dictate() = viewModelScope.launch {
         val l = listener ?: SpeechListener(app).also { listener = it }
         busy.value = true
-        message.value = "Listening… say merchant, date and total"
+        message.value = L.t("Listening… say merchant, date and total", "מקשיב… תגיד את שם העסק, התאריך והסכום")
         val job = launch { l.partial.collect { partial.value = it } }
         val heard = l.listenOnce(timeoutMs = 30_000)
         job.cancel()
         partial.value = ""
         val text = heard.text
-        message.value = if (text.isNullOrBlank()) "Nothing recognized: ${SpeechListener.errorText(heard.error)}" else ReceiptIngest.ingestDictation(app, text).message
+        message.value = if (text.isNullOrBlank()) L.t("Nothing recognized: ", "לא זוהה כלום: ") + SpeechListener.errorText(heard.error) else ReceiptIngest.ingestDictation(app, text).message
         busy.value = false
     }
 
@@ -305,19 +324,19 @@ class ReceiptsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun saveImap(host: String, port: Int, user: String, password: String) {
-        if (host.isBlank() || user.isBlank()) { message.value = "Host and user are required"; return }
+        if (host.isBlank() || user.isBlank()) { message.value = L.t("Host and user are required", "צריך שרת ושם משתמש"); return }
         val enc = if (password.isNotEmpty()) SecretBox.encrypt(password) else null
-        if (enc == null && !app.settings.current.imapPasswordSet) { message.value = "Enter the app password"; return }
+        if (enc == null && !app.settings.current.imapPasswordSet) { message.value = L.t("Enter the app password", "צריך להזין סיסמת אפליקציה"); return }
         app.settings.setImap(host, port, user, enc)
-        message.value = "E-mail settings saved on this phone (password encrypted with Android Keystore)"
+        message.value = L.t("E-mail settings saved on this phone (password encrypted with Android Keystore)", "הגדרות הדואר נשמרו בטלפון הזה (הסיסמה מוצפנת ב-Android Keystore)")
     }
 
-    fun clearImap() { app.settings.clearImap(); message.value = "E-mail removed; e-mail import is skipped" }
+    fun clearImap() { app.settings.clearImap(); message.value = L.t("E-mail removed; e-mail import is skipped", "הדואר הוסר; לא ייבדקו קבלות מהדואר") }
 
     fun syncEmail() {
-        if (!app.settings.current.imapPasswordSet) { message.value = "E-mail not configured; skipped"; return }
+        if (!app.settings.current.imapPasswordSet) { message.value = L.t("E-mail not configured; skipped", "הדואר לא מוגדר; דילגתי"); return }
         ImapWorker.runNow(app)
-        message.value = "Checking e-mail in the background; you'll get a notification"
+        message.value = L.t("Checking e-mail in the background; you'll get a notification", "בודק את הדואר ברקע; תקבל התראה")
     }
 
     override fun onCleared() {
@@ -357,11 +376,11 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         partial.value = ""
         val text = heard.text
         val reply = if (text.isNullOrBlank()) {
-            "I did not hear a command: ${SpeechListener.errorText(heard.error)}."
+            L.t("I did not hear a command: ", "לא שמעתי פקודה: ") + SpeechListener.errorText(heard.error) + "."
         } else {
             VoiceCommands.execute(app, VoiceCommands.parse(text))
         }
-        history.value = (listOf(Turn(text ?: "(nothing)", reply)) + history.value).take(20)
+        history.value = (listOf(Turn(text ?: L.t("(nothing)", "(כלום)"), reply)) + history.value).take(20)
         sp.speak(reply)
     }
 

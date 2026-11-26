@@ -5,6 +5,7 @@ import android.media.MediaRecorder
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import com.autoagent.app.util.L
 import java.io.File
 
 /**
@@ -45,14 +46,18 @@ class CallRecorder(private val context: Context) {
         } catch (e: Exception) {
             runCatching { r.release() }
             f.delete()
-            failure = "Audio not saved: Android blocked call-audio capture for this app " +
-                "(VOICE_CALL needs the system-only CAPTURE_AUDIO_OUTPUT permission). Transcript only."
+            failure = L.t(
+                "Audio not saved: Android blocked call-audio capture for this app " +
+                    "(VOICE_CALL needs the system-only CAPTURE_AUDIO_OUTPUT permission). Transcript only.",
+                "הקול לא נשמר: אנדרואיד חוסם הקלטת שיחות לאפליקציות רגילות " +
+                    "(נדרשת ההרשאה CAPTURE_AUDIO_OUTPUT שזמינה רק למערכת). נשמר תמלול בלבד.",
+            )
         }
     }
 
     fun stop(): Result {
         failure?.let { return Result(null, it) }
-        val r = recorder ?: return Result(null, "Audio recording was not started.")
+        val r = recorder ?: return Result(null, L.t("Audio recording was not started.", "הקלטת הקול לא התחילה."))
         recorder = null
         handler.removeCallbacks(sampler)
         val stopped = runCatching { r.stop() }.isSuccess
@@ -61,13 +66,13 @@ class CallRecorder(private val context: Context) {
         return when {
             f == null || !stopped || f.length() < 1024 -> {
                 f?.delete()
-                Result(null, "Audio not saved: the OS gave this app no call audio. Transcript only.")
+                Result(null, L.t("Audio not saved: the OS gave this app no call audio. Transcript only.", "הקול לא נשמר: מערכת ההפעלה לא העבירה קול מהשיחה. נשמר תמלול בלבד."))
             }
             maxAmplitude == 0 -> {
                 f.delete()
-                Result(null, "Audio not saved: the OS delivered only silence for the call (call audio muted for apps). Transcript only.")
+                Result(null, L.t("Audio not saved: the OS delivered only silence for the call (call audio muted for apps). Transcript only.", "הקול לא נשמר: התקבל רק שקט (קול השיחה מושתק לאפליקציות). נשמר תמלול בלבד."))
             }
-            else -> Result(f.absolutePath, "Call audio saved.")
+            else -> Result(f.absolutePath, L.t("Call audio saved.", "קול השיחה נשמר."))
         }
     }
 }

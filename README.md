@@ -12,6 +12,25 @@ Every automated action is shown in a notification and logged — nothing runs hi
 > This repo also still contains `kablon-upload.zip` and its GitHub Pages workflow (`.github/workflows/deploy.yml`).
 > The Android app does not use them.
 
+## Hebrew / English (עברית ואנגלית)
+The whole app is bilingual. The language button in the top bar cycles **Auto (follow phone) → עברית → English**.
+Hebrew switches the layout to right-to-left and changes everything together: screens, notifications, spoken
+replies, the speech recognizer (`he-IL`), the TTS voice, and the call assistant's script and keyword rules.
+
+Hebrew voice commands are understood in many natural phrasings, offline (rule-based grammar, no model):
+- "תעיר אותי בשבע וחצי", "תעיר אותי מחר בשש", "ברבע לשמונה", "בעשרים לתשע בבוקר", "בעוד רבע שעה", "בעוד שעתיים"
+- "תזכיר לי בעוד חצי שעה להוציא את הכביסה"
+- "תתקשר לדנה", "תחייג ל-050-1234567"
+- "תשלח הודעה לדנה מחר בשמונה שאני מאחר", "תשלח לאמא בשש: אני בדרך", "…תגיד לה שהפגישה בוטלה"
+- "תקריא סיכום", "מה פספסתי?", "תפעיל / תכבה מענה אוטומטי", "עזרה"
+
+Wake-up phrases ("תעיר אותי", "השכמה") read an hour without morning/evening as morning; other phrases pick the next
+upcoming time. These phrasings are covered by unit tests: `./gradlew testDebugUnitTest`.
+
+For Hebrew to work offline, the **Permissions** screen has two extra rows: the Hebrew on-device speech pack and a
+Hebrew TTS voice. Limits: it understands the command types above, not arbitrary sentences; ML Kit OCR reads only
+Latin script, so Hebrew printed receipts should be dictated.
+
 ## Build
 
 ### Android Studio

@@ -1,5 +1,7 @@
 package com.autoagent.app.data
 
+import androidx.room.ColumnInfo
+import com.autoagent.app.util.L
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -25,6 +27,16 @@ object SendStatus {
     const val FAILED = "FAILED"
     const val ABORTED = "ABORTED"
     const val CANCELLED = "CANCELLED"
+
+    fun label(status: String): String = when (status) {
+        PENDING -> L.t("Pending", "ממתין")
+        RUNNING -> L.t("Running", "בביצוע")
+        SENT -> L.t("Sent", "נשלח")
+        FAILED -> L.t("Failed", "נכשל")
+        ABORTED -> L.t("Aborted", "בוטל - המסך לא התאים")
+        CANCELLED -> L.t("Cancelled", "בוטל")
+        else -> status
+    }
 }
 
 /** One message to exactly one recipient (contact or group). No bulk lists by design. */
@@ -59,9 +71,13 @@ data class KeywordRule(
     val intent: String,
     /** Comma separated keywords / phrases, matched case-insensitively. */
     val keywords: String,
+    /** English reply. */
     val response: String,
     val priority: Int = 0,
     val enabled: Boolean = true,
+    /** Hebrew reply (used when the app language is Hebrew). */
+    @ColumnInfo(defaultValue = "")
+    val responseHe: String = "",
 )
 
 @Entity(tableName = "call_records")

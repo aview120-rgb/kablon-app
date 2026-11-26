@@ -36,7 +36,14 @@ class Speaker(context: Context, usage: Int = AudioAttributes.USAGE_ASSISTANT) {
     suspend fun speak(text: String): Boolean {
         val ok = withTimeoutOrNull(6_000) { ready.await() } ?: false
         if (!ok) return false
-        runCatching { tts.language = Locale.getDefault() }
+        runCatching {
+            val loc = com.autoagent.app.util.L.speechLocale
+            val res = tts.setLanguage(loc)
+            if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
+                // Hebrew engines sometimes register under the legacy "iw" code.
+                if (loc.language == "he") tts.setLanguage(Locale.forLanguageTag("iw-IL"))
+            }
+        }
         val id = UUID.randomUUID().toString()
         val done = CompletableDeferred<Unit>()
         pending[id] = done
@@ -46,6 +53,16 @@ class Speaker(context: Context, usage: Int = AudioAttributes.USAGE_ASSISTANT) {
         }
         withTimeoutOrNull(30_000L + text.length * 120L) { done.await() }
         return true
+    }
+
+    /** True when the engine has a voice for the app language (checked after init). */
+    suspend fun hasVoiceForAppLanguage(): Boolean {
+        val ok = withTimeoutOrNull(6_000) { ready.await() } ?: false
+        if (!ok) return false
+        val loc = com.autoagent.app.util.L.speechLocale
+        val a = runCatching { tts.isLanguageAvailable(loc) }.getOrDefault(TextToSpeech.LANG_NOT_SUPPORTED)
+        val b = if (loc.language == "he") runCatching { tts.isLanguageAvailable(Locale.forLanguageTag("iw-IL")) }.getOrDefault(TextToSpeech.LANG_NOT_SUPPORTED) else a
+        return maxOf(a, b) >= TextToSpeech.LANG_AVAILABLE
     }
 
     fun stop() { runCatching { tts.stop() } }

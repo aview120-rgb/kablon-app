@@ -1,5 +1,6 @@
 package com.autoagent.app.calls
 
+import com.autoagent.app.util.L
 import android.os.Build
 import android.os.Bundle
 import android.telecom.Call
@@ -66,7 +67,7 @@ private fun InCallScreen(calls: List<CallManager.CallUi>) {
         assistant?.let {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Assistant is handling this call", style = MaterialTheme.typography.titleMedium, color = Color(0xFFFFC857))
+                    Text(L.t("Assistant is handling this call", "העוזר מטפל בשיחה הזו"), style = MaterialTheme.typography.titleMedium, color = Color(0xFFFFC857))
                     Text(it, style = MaterialTheme.typography.bodyMedium)
                 }
             }
@@ -79,7 +80,7 @@ private fun InCallScreen(calls: List<CallManager.CallUi>) {
 private fun CallCard(c: CallManager.CallUi, audio: CallAudioState?) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(c.name ?: c.number.ifBlank { "Unknown number" }, fontSize = 30.sp)
+            Text(c.name ?: c.number.ifBlank { L.t("Unknown number", "מספר לא ידוע") }, fontSize = 30.sp)
             if (c.name != null) Text(c.number, style = MaterialTheme.typography.bodyLarge)
             Text(CallManager.stateLabel(c.state), style = MaterialTheme.typography.titleMedium)
             val big = Modifier.fillMaxWidth().height(64.dp)
@@ -89,34 +90,34 @@ private fun CallCard(c: CallManager.CallUi, audio: CallAudioState?) {
                         onClick = { CallManager.answer(c.id) },
                         modifier = Modifier.weight(1f).height(72.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                    ) { Text("Answer", fontSize = 20.sp) }
+                    ) { Text(L.t("Answer", "מענה"), fontSize = 20.sp) }
                     Button(
                         onClick = { CallManager.reject(c.id) },
                         modifier = Modifier.weight(1f).height(72.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
-                    ) { Text("Reject", fontSize = 20.sp) }
+                    ) { Text(L.t("Reject", "דחייה"), fontSize = 20.sp) }
                 }
                 else -> {
                     val speakerOn = audio?.route == CallAudioState.ROUTE_SPEAKER
                     val muted = audio?.isMuted == true
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedButton(onClick = { CallManager.setSpeaker(!speakerOn) }, modifier = Modifier.weight(1f).height(64.dp)) {
-                            Text(if (speakerOn) "Speaker ON" else "Speaker")
+                            Text(if (speakerOn) L.t("Speaker ON", "רמקול פועל") else L.t("Speaker", "רמקול"))
                         }
                         OutlinedButton(onClick = { CallManager.setMuted(!muted) }, modifier = Modifier.weight(1f).height(64.dp)) {
-                            Text(if (muted) "Unmute" else "Mute")
+                            Text(if (muted) L.t("Unmute", "בטל השתקה") else L.t("Mute", "השתק"))
                         }
                     }
                     if (c.state == Call.STATE_HOLDING) {
-                        OutlinedButton(onClick = { CallManager.unhold(c.id) }, modifier = big) { Text("Resume", fontSize = 18.sp) }
+                        OutlinedButton(onClick = { CallManager.unhold(c.id) }, modifier = big) { Text(L.t("Resume", "המשך"), fontSize = 18.sp) }
                     } else if (c.state == Call.STATE_ACTIVE) {
-                        OutlinedButton(onClick = { CallManager.hold(c.id) }, modifier = big) { Text("Hold", fontSize = 18.sp) }
+                        OutlinedButton(onClick = { CallManager.hold(c.id) }, modifier = big) { Text(L.t("Hold", "המתנה"), fontSize = 18.sp) }
                     }
                     Button(
                         onClick = { CallManager.hangUp(c.id) },
                         modifier = big,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
-                    ) { Text("Hang up", fontSize = 20.sp) }
+                    ) { Text(L.t("Hang up", "ניתוק"), fontSize = 20.sp) }
                 }
             }
         }

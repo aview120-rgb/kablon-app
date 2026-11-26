@@ -7,6 +7,7 @@ import com.autoagent.app.data.ActionLog
 import com.autoagent.app.data.Settings
 import com.autoagent.app.schedule.WatchdogWorker
 import com.autoagent.app.service.AgentStatus
+import com.autoagent.app.util.L
 import com.autoagent.app.util.Notifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +26,7 @@ class AutoAgentApp : Application() {
         instance = this
         db = AppDatabase.build(this)
         settings = Settings(this)
+        L.apply(settings.current.language)
         Notifier.createChannels(this)
         PhoneAccounts.register(this)
         WatchdogWorker.ensureScheduled(this)

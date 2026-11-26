@@ -1,5 +1,6 @@
 package com.autoagent.app.ui.screens
 
+import com.autoagent.app.util.L
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -56,23 +57,23 @@ fun HomeScreen(vm: HomeViewModel, go: (String) -> Unit) {
     ) {
         if (missing > 0) item {
             InfoCard(Modifier.clickable { go("permissions") }, container = Bad.copy(alpha = 0.25f)) {
-                Text("$missing permission(s) missing", style = MaterialTheme.typography.titleMedium)
-                Text("Tap to open the checklist.")
+                Text(L.t("$missing permission(s) missing", "חסרות $missing הרשאות"), style = MaterialTheme.typography.titleMedium)
+                Text(L.t("Tap to open the checklist.", "הקש כדי לפתוח את רשימת ההרשאות."))
             }
         }
         item {
             InfoCard {
-                Text("Call a number", style = MaterialTheme.typography.titleMedium)
+                Text(L.t("Call a number", "חיוג למספר"), style = MaterialTheme.typography.titleMedium)
                 OutlinedTextField(
                     value = dial, onValueChange = { vm.dialText.value = it },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Phone number") },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L.t("Phone number", "מספר טלפון")) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 )
-                Button(onClick = { vm.call(dial) }, modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp)) { Text("Call") }
+                Button(onClick = { vm.call(dial) }, modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp)) { Text(L.t("Call", "חייג")) }
                 msg?.let { Text(it, color = Bad) }
             }
         }
-        item { SectionTitle("Next actions") }
+        item { SectionTitle(L.t("Next actions", "הפעולות הבאות")) }
         items(actions) { a ->
             Card(
                 Modifier.fillMaxWidth().clickable { go(a.route) },
@@ -81,19 +82,19 @@ fun HomeScreen(vm: HomeViewModel, go: (String) -> Unit) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row { Text(a.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); a.at?.let { Text(TimeText.format(it)) } }
                     if (a.detail.isNotBlank()) Text(a.detail, style = MaterialTheme.typography.bodyMedium)
-                    a.callNumber?.let { n -> Button(onClick = { vm.call(n) }, modifier = Modifier.heightIn(min = 52.dp)) { Text("Call back") } }
+                    a.callNumber?.let { n -> Button(onClick = { vm.call(n) }, modifier = Modifier.heightIn(min = 52.dp)) { Text(L.t("Call back", "לחזור")) } }
                 }
             }
         }
-        item { SectionTitle("Go to") }
+        item { SectionTitle(L.t("Go to", "מעבר אל")) }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Tile("Schedules", "Messages and alarms") { go("schedules") }
-                Tile("Auto-answer rules", "Unknown callers, templates, transcripts") { go("autoanswer") }
-                Tile("Inbox summaries", "$inbox message(s) in the last 24 h") { go("inbox") }
-                Tile("Receipts", "Share an image or voice note to AutoAgent") { go("receipts") }
-                Tile("Voice", "Tap the mic and speak a command") { go("voice") }
-                Tile("Permissions", "Green = ready, red = needs action") { go("permissions") }
+                Tile(L.t("Schedules", "תזמונים"), L.t("Messages and alarms", "הודעות ושעונים מעוררים")) { go("schedules") }
+                Tile(L.t("Auto-answer rules", "כללי מענה אוטומטי"), L.t("Unknown callers, templates, transcripts", "מתקשרים לא מוכרים, תבניות, תמלולים")) { go("autoanswer") }
+                Tile(L.t("Inbox summaries", "סיכומי הודעות"), L.t("$inbox message(s) in the last 24 h", "$inbox הודעות ב-24 השעות האחרונות")) { go("inbox") }
+                Tile(L.t("Receipts", "קבלות"), L.t("Share an image or voice note to AutoAgent", "שתף תמונה או הקלטה ל-AutoAgent")) { go("receipts") }
+                Tile(L.t("Voice", "פקודות קוליות"), L.t("Tap the mic and speak a command", "הקש על המיקרופון ותגיד פקודה")) { go("voice") }
+                Tile(L.t("Permissions", "הרשאות"), L.t("Green = ready, red = needs action", "ירוק = מוכן, אדום = צריך טיפול")) { go("permissions") }
             }
         }
         item { Text(" ") }

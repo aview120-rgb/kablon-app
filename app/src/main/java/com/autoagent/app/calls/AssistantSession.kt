@@ -8,6 +8,7 @@ import androidx.core.content.ContextCompat
 import com.autoagent.app.AutoAgentApp
 import com.autoagent.app.data.CallRecord
 import com.autoagent.app.data.RuleIntent
+import com.autoagent.app.util.L
 import com.autoagent.app.util.Notifier
 import com.autoagent.app.voice.Speaker
 import com.autoagent.app.voice.SpeechListener
@@ -56,9 +57,12 @@ class AssistantSession(
         val maxTurns = app.settings.current.maxTurns
         val micOk = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
-        CallManager.assistantStatus.value =
+        CallManager.assistantStatus.value = L.t(
             "Assistant active on speakerphone. Android does not let apps play audio into the call itself, " +
-            "so the caller hears the assistant through your speaker and microphone."
+                "so the caller hears the assistant through your speaker and microphone.",
+            "העוזר פעיל ברמקול. אנדרואיד לא מאפשר לאפליקציות להשמיע קול לתוך השיחה עצמה, " +
+                "ולכן המתקשר שומע את העוזר דרך הרמקול והמיקרופון.",
+        )
         control.setSpeaker(true)
         delay(700)
 
@@ -68,41 +72,41 @@ class AssistantSession(
         val listener = SpeechListener(context)
 
         suspend fun say(text: String) {
-            transcript.append("Assistant: ").append(text).append('\n')
-            CallManager.assistantStatus.value = "Speaking: $text"
-            if (!speaker.speak(text)) notes += "Text-to-speech engine unavailable."
+            transcript.append(L.t("Assistant: ", "עוזר: ")).append(text).append('\n')
+            CallManager.assistantStatus.value = L.t("Speaking: $text", "מדבר: $text")
+            if (!speaker.speak(text)) notes += L.t("Text-to-speech engine unavailable.", "מנוע ההקראה לא זמין.")
         }
 
         try {
             say(CallBrain.GREETING)
             say(CallBrain.ASK)
             if (!micOk) {
-                notes += "Microphone permission is off, so the caller could not be heard."
+                notes += L.t("Microphone permission is off, so the caller could not be heard.", "ההרשאה למיקרופון כבויה, ולכן לא היה אפשר לשמוע את המתקשר.")
             } else {
                 var turns = 0
                 var misses = 0
                 while (turns < maxTurns && control.isActive()) {
-                    CallManager.assistantStatus.value = "Listening to caller…"
+                    CallManager.assistantStatus.value = L.t("Listening to caller…", "מקשיב למתקשר…")
                     val heard = listener.listenOnce(timeoutMs = 20_000)
                     val text = heard.text?.trim().orEmpty()
                     if (text.isEmpty()) {
-                        heard.error?.let { notes += "Speech: " + SpeechListener.errorText(it) }
+                        heard.error?.let { notes += L.t("Speech: ", "דיבור: ") + SpeechListener.errorText(it) }
                         if (++misses >= 2 || !control.isActive()) break
                         say(CallBrain.NOT_HEARD)
                         continue
                     }
                     misses = 0
                     turns++
-                    transcript.append("Caller: ").append(text).append('\n')
+                    transcript.append(L.t("Caller: ", "מתקשר: ")).append(text).append('\n')
                     val reply = CallBrain.reply(text, rules)
                     intents += reply.intent
                     say(reply.text)
                     if (reply.intent == RuleIntent.TAKE_MESSAGE || reply.intent == RuleIntent.CALLBACK_TIME) {
-                        CallManager.assistantStatus.value = "Recording caller's message…"
+                        CallManager.assistantStatus.value = L.t("Recording caller's message…", "רושם את ההודעה של המתקשר…")
                         val msg = listener.listenOnce(timeoutMs = 30_000).text?.trim().orEmpty()
                         if (msg.isNotEmpty()) {
-                            transcript.append("Caller: ").append(msg).append('\n')
-                            say("Got it. I saved your message.")
+                            transcript.append(L.t("Caller: ", "מתקשר: ")).append(msg).append('\n')
+                            say(CallBrain.SAVED)
                         }
                     } else if (turns < maxTurns && control.isActive()) {
                         say(CallBrain.ANYTHING_ELSE)
@@ -113,8 +117,8 @@ class AssistantSession(
         } finally {
             withContext(NonCancellable) {
                 listener.destroy()
-                val rec = if (isTest) CallRecorder.Result(null, "Test call: audio recording skipped.") else if (micOk) recorder.stop()
-                else CallRecorder.Result(null, "Audio not saved: microphone permission is off.")
+                val rec = if (isTest) CallRecorder.Result(null, L.t("Test call: audio recording skipped.", "שיחת בדיקה: ללא הקלטת קול.")) else if (micOk) recorder.stop()
+                else CallRecorder.Result(null, L.t("Audio not saved: microphone permission is off.", "הקול לא נשמר: ההרשאה למיקרופון כבויה."))
                 speaker.shutdown()
                 runCatching { control.hangUp() }
                 CallManager.assistantStatus.value = null
@@ -130,12 +134,13 @@ class AssistantSession(
                     isTest = isTest,
                 )
                 withContext(Dispatchers.IO) { app.db.calls().insert(record) }
-                app.log("call", "Assistant answered ${control.number}: ${intents.distinct().joinToString().ifEmpty { "no request heard" }}", true)
-                val lastCaller = transcript.lines().lastOrNull { it.startsWith("Caller:") }?.removePrefix("Caller:")?.trim()
+                app.log("call", L.t("Assistant answered ${control.number}: ", "העוזר ענה ל-${control.number}: ") + intents.distinct().joinToString().ifEmpty { L.t("no request heard", "לא נשמעה בקשה") }, true)
+                val callerTag = L.t("Caller:", "מתקשר:")
+                val lastCaller = transcript.lines().lastOrNull { it.startsWith(callerTag) }?.removePrefix(callerTag)?.trim()
                 Notifier.event(
                     context,
-                    if (isTest) "Assistant test call finished" else "Assistant answered ${control.number}",
-                    (lastCaller?.let { "\"$it\" — " } ?: "") + "Call back when you can. $note",
+                    if (isTest) L.t("Assistant test call finished", "שיחת הבדיקה של העוזר הסתיימה") else L.t("Assistant answered ${control.number}", "העוזר ענה ל-${control.number}"),
+                    (lastCaller?.let { "\"$it\" — " } ?: "") + L.t("Call back when you can. ", "כדאי לחזור כשנוח. ") + note,
                     "autoanswer",
                 )
             }

@@ -1,5 +1,6 @@
 package com.autoagent.app.alarm
 
+import com.autoagent.app.util.L
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -59,11 +60,11 @@ class AlarmActivity : ComponentActivity() {
                         Button(
                             onClick = { send(AlarmRingService.ACTION_DISMISS, label) },
                             modifier = Modifier.fillMaxWidth().height(72.dp),
-                        ) { Text("Dismiss", fontSize = 22.sp) }
+                        ) { Text(L.t("Dismiss", "כיבוי"), fontSize = 22.sp) }
                         OutlinedButton(
                             onClick = { send(AlarmRingService.ACTION_SNOOZE, label) },
                             modifier = Modifier.fillMaxWidth().height(72.dp),
-                        ) { Text("Snooze 10 min", fontSize = 22.sp) }
+                        ) { Text(L.t("Snooze 10 min", "נודניק 10 דק'"), fontSize = 22.sp) }
                     }
                 }
             }

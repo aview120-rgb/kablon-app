@@ -1,5 +1,6 @@
 package com.autoagent.app.receipts
 
+import com.autoagent.app.util.L
 import android.content.Context
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -34,8 +35,8 @@ object ImapFetcher {
     suspend fun fetch(app: AutoAgentApp, days: Int = 30): Outcome = withContext(Dispatchers.IO) {
         val s = app.settings.current
         val enc = app.settings.encryptedImapPassword()
-        require(s.imapHost.isNotBlank() && s.imapUser.isNotBlank() && enc != null) { "E-mail is not configured" }
-        val password = SecretBox.decrypt(enc) ?: error("Saved password could not be decrypted; enter it again")
+        require(s.imapHost.isNotBlank() && s.imapUser.isNotBlank() && enc != null) { L.t("E-mail is not configured", "הדואר לא מוגדר") }
+        val password = SecretBox.decrypt(enc) ?: error(L.t("Saved password could not be decrypted; enter it again", "לא הצלחתי לפענח את הסיסמה השמורה; צריך להזין אותה שוב"))
         val props = Properties().apply {
             put("mail.store.protocol", "imaps")
             put("mail.imaps.host", s.imapHost)
@@ -110,11 +111,11 @@ class ImapWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         return try {
             val out = ImapFetcher.fetch(app)
             app.log("imap", "E-mail scan: ${out.scanned} receipt-like, ${out.added} new", true)
-            Notifier.event(app, "E-mail receipts", "Found ${out.added} new receipt(s) in ${out.scanned} matching e-mails", "receipts")
+            Notifier.event(app, L.t("E-mail receipts", "קבלות מהדואר"), L.t("Found ${out.added} new receipt(s) in ${out.scanned} matching e-mails", "נמצאו ${out.added} קבלות חדשות מתוך ${out.scanned} מיילים מתאימים"), "receipts")
             Result.success()
         } catch (e: Exception) {
             app.log("imap", "E-mail scan failed: ${e.message}", false)
-            Notifier.event(app, "E-mail receipts failed", e.message ?: e.javaClass.simpleName, "receipts")
+            Notifier.event(app, L.t("E-mail receipts failed", "בדיקת הקבלות בדואר נכשלה"), e.message ?: e.javaClass.simpleName, "receipts")
             Result.failure()
         }
     }

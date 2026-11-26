@@ -1,5 +1,6 @@
 package com.autoagent.app.calls
 
+import com.autoagent.app.util.L
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Handler
@@ -128,21 +129,21 @@ class AgentInCallService : InCallService() {
             this, 10, Intent(this, InCallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val who = c.name ?: c.number.ifBlank { "Unknown" }
+        val who = c.name ?: c.number.ifBlank { L.t("Unknown", "לא ידוע") }
         val b = NotificationCompat.Builder(this, Notifier.CH_CALL)
             .setSmallIcon(R.drawable.ic_stat_agent)
-            .setContentTitle(if (c.assistant) "Assistant on call: $who" else "${CallManager.stateLabel(c.state)}: $who")
-            .setContentText(if (c.assistant) "Answered by your assistant (disclosed and recorded)" else "Tap to open")
+            .setContentTitle(if (c.assistant) L.t("Assistant on call: $who", "העוזר בשיחה עם: $who") else "${CallManager.stateLabel(c.state)}: $who")
+            .setContentText(if (c.assistant) L.t("Answered by your assistant (disclosed and recorded)", "נענה על ידי העוזר (בהודעה גלויה ובהקלטה)") else L.t("Tap to open", "הקש לפתיחה"))
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setOngoing(true)
             .setContentIntent(ui)
         if (c.state == Call.STATE_RINGING) {
             b.setFullScreenIntent(ui, true)
-            b.addAction(0, "Answer", CallActionReceiver.pending(this, CallActionReceiver.ACTION_ANSWER, c.id))
-            b.addAction(0, "Reject", CallActionReceiver.pending(this, CallActionReceiver.ACTION_REJECT, c.id))
+            b.addAction(0, L.t("Answer", "מענה"), CallActionReceiver.pending(this, CallActionReceiver.ACTION_ANSWER, c.id))
+            b.addAction(0, L.t("Reject", "דחייה"), CallActionReceiver.pending(this, CallActionReceiver.ACTION_REJECT, c.id))
         } else {
-            b.addAction(0, "Hang up", CallActionReceiver.pending(this, CallActionReceiver.ACTION_HANGUP, c.id))
+            b.addAction(0, L.t("Hang up", "ניתוק"), CallActionReceiver.pending(this, CallActionReceiver.ACTION_HANGUP, c.id))
         }
         try { nm.notify(Notifier.ID_INCOMING_CALL, b.build()) } catch (_: SecurityException) {}
     }

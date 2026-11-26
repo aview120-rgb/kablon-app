@@ -1,5 +1,6 @@
 package com.autoagent.app.schedule
 
+import com.autoagent.app.util.L
 import android.Manifest
 import android.app.Activity
 import android.app.PendingIntent
@@ -51,7 +52,7 @@ class SmsResultReceiver : BroadcastReceiver() {
         if (intent.action != SmsSender.ACTION_SENT) return
         val id = intent.getLongExtra(SendScheduler.EXTRA_SEND_ID, -1)
         val ok = resultCode == Activity.RESULT_OK
-        val note = if (ok) "SMS sent" else "SMS failed (radio result code $resultCode)"
+        val note = if (ok) L.t("SMS sent", "ה-SMS נשלח") else L.t("SMS failed (radio result code $resultCode)", "שליחת ה-SMS נכשלה (קוד $resultCode)")
         val pending = goAsync()
         val app = context.applicationContext as AutoAgentApp
         CoroutineScope(Dispatchers.IO).launch {
@@ -59,7 +60,7 @@ class SmsResultReceiver : BroadcastReceiver() {
                 val s = app.db.sends().get(id)
                 app.db.sends().setStatus(id, if (ok) SendStatus.SENT else SendStatus.FAILED, note)
                 app.log("sms", "$note to ${s?.recipientLabel ?: "?"}", ok)
-                Notifier.event(context, if (ok) "Scheduled SMS sent" else "Scheduled SMS failed", "${s?.recipientLabel ?: ""}: $note", "schedules")
+                Notifier.event(context, if (ok) L.t("Scheduled SMS sent", "SMS מתוזמן נשלח") else L.t("Scheduled SMS failed", "SMS מתוזמן נכשל"), "${s?.recipientLabel ?: ""}: $note", "schedules")
                 AgentStatus.refresh(context)
             } finally {
                 pending.finish()

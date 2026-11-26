@@ -1,5 +1,6 @@
 package com.autoagent.app.calls
 
+import com.autoagent.app.util.L
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.role.RoleManager
@@ -45,14 +46,14 @@ object PhoneAccounts {
     @SuppressLint("MissingPermission")
     fun placeCall(context: Context, number: String): String? {
         val clean = number.trim()
-        if (clean.filter { it.isDigit() }.length < 3) return "That does not look like a phone number"
-        if (!canCall(context)) return "Phone permission is off"
+        if (clean.filter { it.isDigit() }.length < 3) return L.t("That does not look like a phone number", "זה לא נראה כמו מספר טלפון")
+        if (!canCall(context)) return L.t("Phone permission is off", "ההרשאה לטלפון כבויה")
         return try {
             context.getSystemService(TelecomManager::class.java)
                 .placeCall(Uri.fromParts(PhoneAccount.SCHEME_TEL, clean, null), Bundle())
             null
         } catch (e: SecurityException) {
-            "Android refused the call: ${e.message}"
+            L.t("Android refused the call: ${e.message}", "אנדרואיד סירב לשיחה: ${e.message}")
         }
     }
 
@@ -62,14 +63,14 @@ object PhoneAccounts {
         val handle = testHandle(context)
         register(context)
         return try {
-            if (!tm.isIncomingCallPermitted(handle)) return "Android does not allow a test call right now (another call is active)"
+            if (!tm.isIncomingCallPermitted(handle)) return L.t("Android does not allow a test call right now (another call is active)", "אנדרואיד לא מאפשר שיחת בדיקה כרגע (יש שיחה אחרת פעילה)")
             val extras = Bundle().apply {
                 putParcelable(TelecomManager.EXTRA_INCOMING_CALL_ADDRESS, Uri.fromParts(PhoneAccount.SCHEME_TEL, "TEST", null))
             }
             tm.addNewIncomingCall(handle, extras)
             null
         } catch (e: SecurityException) {
-            "Android refused the test call: ${e.message}"
+            L.t("Android refused the test call: ${e.message}", "אנדרואיד סירב לשיחת הבדיקה: ${e.message}")
         }
     }
 }

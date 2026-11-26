@@ -1,5 +1,6 @@
 package com.autoagent.app.receipts
 
+import com.autoagent.app.util.L
 import android.content.Context
 import android.media.AudioFormat
 import android.media.MediaCodec
@@ -28,11 +29,11 @@ object AudioTranscriber {
 
     suspend fun transcribe(context: Context, uri: Uri): Result {
         if (Build.VERSION.SDK_INT < 33) {
-            return Result.Unsupported("Transcribing a shared audio file needs Android 13 or newer. Use \"Dictate receipt\" instead.")
+            return Result.Unsupported(L.t("Transcribing a shared audio file needs Android 13 or newer. Use \"Dictate receipt\" instead.", "תמלול קובץ קול משותף דורש אנדרואיד 13 ומעלה. אפשר להשתמש ב\"הכתבת קבלה\" במקום."))
         }
         val listener = SpeechListener(context)
         if (!listener.onDevice) {
-            return Result.Unsupported("On-device speech recognition is not available. Install the offline language pack (Permissions screen).")
+            return Result.Unsupported(L.t("On-device speech recognition is not available. Install the offline language pack (Permissions screen).", "זיהוי דיבור במכשיר לא זמין. צריך להתקין את חבילת השפה הלא מקוונת (במסך ההרשאות)."))
         }
         val pcm = File(context.cacheDir, "voice_${System.currentTimeMillis()}.pcm")
         val (rate, _) = withContext(Dispatchers.IO) { decodeToPcm(context, uri, pcm) }
@@ -48,7 +49,7 @@ object AudioTranscriber {
                 }
             }
             val text = heard.text
-            if (text.isNullOrBlank()) Result.Unsupported("Could not transcribe: " + SpeechListener.errorText(heard.error))
+            if (text.isNullOrBlank()) Result.Unsupported(L.t("Could not transcribe: ", "לא הצלחתי לתמלל: ") + SpeechListener.errorText(heard.error))
             else Result.Text(text)
         } finally {
             withContext(Dispatchers.Main) { listener.destroy() }
@@ -63,7 +64,7 @@ object AudioTranscriber {
         extractor.setDataSource(context, uri, null)
         val track = (0 until extractor.trackCount).firstOrNull {
             extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
-        } ?: error("No audio track in shared file")
+        } ?: error(L.t("No audio track in shared file", "אין ערוץ קול בקובץ ששותף"))
         extractor.selectTrack(track)
         val format = extractor.getTrackFormat(track)
         val codec = MediaCodec.createDecoderByType(format.getString(MediaFormat.KEY_MIME)!!)
