@@ -60,6 +60,8 @@ class InCallActivity : ComponentActivity() {
 private fun InCallScreen(calls: List<CallManager.CallUi>) {
     val assistant by CallManager.assistantStatus.collectAsState()
     val audio by CallManager.audioState.collectAsState()
+    val hold by HoldWatcher.status.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
     Column(
         Modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -70,6 +72,34 @@ private fun InCallScreen(calls: List<CallManager.CallUi>) {
                     Text(L.t("Assistant is handling this call", "העוזר מטפל בשיחה הזו"), style = MaterialTheme.typography.titleMedium, color = Color(0xFFFFC857))
                     Text(it, style = MaterialTheme.typography.bodyMedium)
                 }
+            }
+        }
+        hold?.let {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(it.removePrefix("!"), style = MaterialTheme.typography.titleMedium, color = if (it.startsWith("!")) Color(0xFF4CAF50) else Color(0xFFFFC857))
+                }
+            }
+        }
+        val outgoingActive = calls.firstOrNull { !it.incoming && !it.assistant && (it.state == Call.STATE_ACTIVE || it.state == Call.STATE_DIALING) }
+        if (outgoingActive != null) {
+            if (HoldWatcher.active) {
+                OutlinedButton(onClick = { HoldWatcher.stop() }, modifier = Modifier.fillMaxWidth().height(64.dp)) {
+                    Text(L.t("Stop waiting for a person", "הפסק להמתין לנציג"), fontSize = 18.sp)
+                }
+            } else {
+                Button(
+                    onClick = {
+                        val id = outgoingActive.id
+                        if (outgoingActive.state == Call.STATE_DIALING) {
+                            HoldWatcher.armedForNextCall = true
+                            HoldWatcher.status.value = L.t("Will start listening when the call connects.", "אתחיל להקשיב כשהשיחה תתחבר.")
+                            return@Button
+                        }
+                        HoldWatcher.start(context) { CallManager.find(id)?.let { CallManager.stateOf(it) == Call.STATE_ACTIVE || CallManager.stateOf(it) == Call.STATE_HOLDING } == true }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(64.dp),
+                ) { Text(L.t("Tell me when a person answers", "תודיע לי כשנציג עונה"), fontSize = 18.sp) }
             }
         }
         calls.forEach { c -> CallCard(c, audio) }

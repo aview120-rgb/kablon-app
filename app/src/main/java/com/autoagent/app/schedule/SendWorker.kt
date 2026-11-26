@@ -36,7 +36,8 @@ class SendWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         if (job.status != SendStatus.PENDING) return Result.success()
 
         val lateMs = System.currentTimeMillis() - job.sendAt
-        if (lateMs > LATE_LIMIT_MS) {
+        val afterUnlock = inputData.getBoolean(SendScheduler.EXTRA_AFTER_UNLOCK, false)
+        if (lateMs > if (afterUnlock) UNLOCK_LIMIT_MS else LATE_LIMIT_MS) {
             finish(job.id, SendStatus.ABORTED, L.t("Missed by ${lateMs / 60_000} min (phone off or asleep). Not sent late.", "פוספס ב-${lateMs / 60_000} דקות (הטלפון היה כבוי או רדום). לא נשלח באיחור."), job.recipientLabel)
             return Result.success()
         }
@@ -65,6 +66,11 @@ class SendWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val outcome = withContext(Dispatchers.Main) {
             withTimeoutOrNull(60_000) { svc.performSend(job) }
         } ?: AutomationService.Outcome(false, true, L.t("Timed out waiting for ${job.appLabel}", "נגמר הזמן בהמתנה ל-${job.appLabel}"))
+        if (outcome.waitUnlock) {
+            app.db.sends().setStatus(job.id, SendStatus.WAITING_UNLOCK, outcome.note)
+            Notifier.event(app, L.t("Unlock to send", "פתח את הנעילה כדי לשלוח"), "${job.recipientLabel}: ${job.text.take(60)}", "schedules")
+            return Result.success()
+        }
         finish(
             job.id,
             when {
@@ -94,5 +100,6 @@ class SendWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
 
     companion object {
         const val LATE_LIMIT_MS = 15 * 60_000L
+        const val UNLOCK_LIMIT_MS = 60 * 60_000L
     }
 }

@@ -31,6 +31,10 @@ class AgentInCallService : InCallService() {
             updateNotification()
             val id = CallManager.idOf(call)
             if (state == Call.STATE_ACTIVE && pendingAssistant.remove(id)) startAssistant(call)
+            if (state == Call.STATE_ACTIVE && !CallManager.isIncoming(call) && HoldWatcher.armedForNextCall) {
+                HoldWatcher.armedForNextCall = false
+                HoldWatcher.start(this@AgentInCallService) { CallManager.stateOf(call) == Call.STATE_ACTIVE || CallManager.stateOf(call) == Call.STATE_HOLDING }
+            }
         }
         override fun onDetailsChanged(call: Call, details: Call.Details) { CallManager.publish() }
     }
@@ -69,6 +73,7 @@ class AgentInCallService : InCallService() {
         val id = CallManager.idOf(call)
         pendingAssistant.remove(id)
         sessions.remove(id)?.stop()
+        if (CallManager.count() <= 1) HoldWatcher.stop()
         CallManager.remove(call)
         updateNotification()
     }

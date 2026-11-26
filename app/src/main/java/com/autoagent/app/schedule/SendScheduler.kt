@@ -16,6 +16,7 @@ import com.autoagent.app.alarm.AlarmScheduler
 import com.autoagent.app.data.ScheduledSend
 import com.autoagent.app.data.SendStatus
 import com.autoagent.app.service.AgentStatus
+import kotlinx.coroutines.launch
 
 object SendScheduler {
     const val EXTRA_SEND_ID = "send_id"
@@ -73,6 +74,7 @@ object SendScheduler {
     suspend fun cancel(context: Context, send: ScheduledSend) {
         val app = context.applicationContext as AutoAgentApp
         context.getSystemService(AlarmManager::class.java).cancel(pending(context, send.id))
+        androidx.work.WorkManager.getInstance(context).cancelUniqueWork("send-${send.id}")
         app.db.sends().setStatus(send.id, SendStatus.CANCELLED, L.t("Cancelled by you", "בוטל על ידך"))
         app.log("schedule", "Cancelled send to ${send.recipientLabel}", true)
         AgentStatus.refresh(context)
@@ -88,9 +90,22 @@ object SendScheduler {
         return n
     }
 
-    fun enqueueNow(context: Context, id: Long) {
-        val builder = OneTimeWorkRequestBuilder<SendWorker>().setInputData(workDataOf(EXTRA_SEND_ID to id))
+    const val EXTRA_AFTER_UNLOCK = "after_unlock"
+
+    /** Called when the phone is unlocked: resumes sends that were waiting for it (sent up to 60 min late). */
+    fun resumeWaitingUnlock(context: Context) {
+        val app = context.applicationContext as AutoAgentApp
+        app.appScope.launch {
+            for (s in app.db.sends().byStatus(SendStatus.WAITING_UNLOCK)) {
+                app.db.sends().setStatus(s.id, SendStatus.PENDING, s.resultNote)
+                enqueueNow(context, s.id, afterUnlock = true)
+            }
+        }
+    }
+
+    fun enqueueNow(context: Context, id: Long, afterUnlock: Boolean = false) {
+        val builder = OneTimeWorkRequestBuilder<SendWorker>().setInputData(workDataOf(EXTRA_SEND_ID to id, EXTRA_AFTER_UNLOCK to afterUnlock))
         if (Build.VERSION.SDK_INT >= 31) builder.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-        WorkManager.getInstance(context).enqueueUniqueWork("send-$id", ExistingWorkPolicy.KEEP, builder.build())
+        WorkManager.getInstance(context).enqueueUniqueWork("send-$id", if (afterUnlock) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP, builder.build())
     }
 }

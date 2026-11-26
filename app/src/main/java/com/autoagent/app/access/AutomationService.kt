@@ -26,11 +26,20 @@ import kotlinx.coroutines.delay
  */
 class AutomationService : AccessibilityService() {
 
-    data class Outcome(val sent: Boolean, val aborted: Boolean, val note: String)
+    data class Outcome(val sent: Boolean, val aborted: Boolean, val note: String, val waitUnlock: Boolean = false)
+
+    private val unlockReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context, intent: Intent) {
+            if (intent.action == Intent.ACTION_USER_PRESENT) com.autoagent.app.schedule.SendScheduler.resumeWaitingUnlock(context)
+        }
+    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        androidx.core.content.ContextCompat.registerReceiver(
+            this, unlockReceiver, android.content.IntentFilter(Intent.ACTION_USER_PRESENT), androidx.core.content.ContextCompat.RECEIVER_EXPORTED,
+        )
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -46,6 +55,7 @@ class AutomationService : AccessibilityService() {
 
     override fun onDestroy() {
         instance = null
+        runCatching { unregisterReceiver(unlockReceiver) }
         super.onDestroy()
     }
 
@@ -82,7 +92,16 @@ class AutomationService : AccessibilityService() {
 
     suspend fun performSend(job: ScheduledSend): Outcome {
         val km = getSystemService(KeyguardManager::class.java)
-        if (km.isKeyguardLocked) return abort(L.t("Phone was locked, so the screen could not be verified. Not sent.", "הטלפון היה נעול ולכן אי אפשר היה לבדוק את המסך. לא נשלח."))
+        if (km.isKeyguardLocked) {
+            // Swipe-only lock: dismissed automatically. PIN/biometric: Android shows its unlock prompt; we wait for you.
+            val unlocked = kotlinx.coroutines.withTimeoutOrNull(if (km.isDeviceSecure) 45_000L else 8_000L) {
+                UnlockActivity.request(this@AutomationService, job.recipientLabel).await()
+            } == true
+            if (!unlocked || km.isKeyguardLocked) {
+                return Outcome(false, false, L.t("Phone is locked; waiting for you to unlock (up to 60 min).", "הטלפון נעול; ממתין שתפתח את הנעילה (עד 60 דקות)."), waitUnlock = true)
+            }
+            kotlinx.coroutines.delay(600)
+        }
         if (packageManager.getLaunchIntentForPackage(job.packageName) == null) return abort(L.t("${job.appLabel} is not installed", "${job.appLabel} לא מותקנת"))
         val intent = buildIntent(job) ?: return abort(L.t("${job.appLabel} does not accept shared text", "${job.appLabel} לא מקבלת טקסט משותף"))
         progress(job, true)

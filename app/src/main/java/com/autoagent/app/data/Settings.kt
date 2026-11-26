@@ -16,6 +16,10 @@ data class SettingsState(
     val seeded: Boolean = false,
     /** "auto" (follow phone), "he" or "en". */
     val language: String = "auto",
+    /** Use Google's online recognizer when the offline pack for the language is missing. */
+    val allowOnlineSpeech: Boolean = true,
+    /** Use the Shizuku in-call audio bridge (speak into the call / hear the line) when available. */
+    val useCallBridge: Boolean = true,
 )
 
 /** Small SharedPreferences-backed settings store exposed as a StateFlow. Stays on device. */
@@ -34,6 +38,8 @@ class Settings(context: Context) {
         imapPasswordSet = !prefs.getString(K_PASS, null).isNullOrEmpty(),
         seeded = prefs.getBoolean(K_SEEDED, false),
         language = prefs.getString(K_LANG, "auto") ?: "auto",
+        allowOnlineSpeech = prefs.getBoolean(K_ONLINE, true),
+        useCallBridge = prefs.getBoolean(K_BRIDGE, true),
     )
 
     private fun edit(block: android.content.SharedPreferences.Editor.() -> Unit) {
@@ -46,6 +52,8 @@ class Settings(context: Context) {
     fun setAutoAnswer(enabled: Boolean) = edit { putBoolean(K_AUTO, enabled) }
     fun setAutoAnswerDelay(sec: Int) = edit { putInt(K_DELAY, sec.coerceIn(0, 30)) }
     fun setMaxTurns(turns: Int) = edit { putInt(K_TURNS, turns.coerceIn(1, 6)) }
+    fun setAllowOnlineSpeech(on: Boolean) = edit { putBoolean(K_ONLINE, on) }
+    fun setUseCallBridge(on: Boolean) = edit { putBoolean(K_BRIDGE, on) }
     fun setSeeded() = edit { putBoolean(K_SEEDED, true) }
     fun setLanguage(mode: String) {
         edit { putString(K_LANG, mode) }
@@ -73,5 +81,7 @@ class Settings(context: Context) {
         private const val K_PASS = "imap_pass"
         private const val K_SEEDED = "seeded"
         private const val K_LANG = "language"
+        private const val K_ONLINE = "online_speech"
+        private const val K_BRIDGE = "call_bridge"
     }
 }

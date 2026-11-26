@@ -6,14 +6,23 @@ import com.autoagent.app.util.L
 
 /** Offline, rule-based replies for the call assistant (Hebrew and English). No cloud model. */
 object CallBrain {
+    /** Mandatory first sentence. */
     val GREETING get() = L.t("This call is answered by an assistant and is recorded.", "השיחה נענית על ידי עוזר ומוקלטת.")
-    val ASK get() = L.t("What do you need? Please tell me now.", "במה אפשר לעזור? אפשר לדבר עכשיו.")
-    val UNKNOWN_REPLY get() = L.t("I will pass this to the owner.", "אני אעביר את זה לבעל המספר.")
+    val ASK get() = L.t(
+        "I am the digital assistant. The owner cannot answer right now. How can I help?",
+        "אני הנציג הדיגיטלי. הוא לא יכול לענות כרגע. במה אפשר לעזור?",
+    )
     val ANYTHING_ELSE get() = L.t("Anything else?", "יש עוד משהו?")
-    val CLOSING get() = L.t("Thank you. The owner will call you back. Goodbye.", "תודה. יחזרו אליך בהקדם. להתראות.")
-    val NOT_HEARD get() = L.t("Sorry, I did not catch that. Please say it again.", "סליחה, לא שמעתי. אפשר לחזור על זה?")
-    val SAVED get() = L.t("Got it. I saved your message.", "קיבלתי. שמרתי את ההודעה.")
+    val CLOSING get() = L.t("Thank you. The owner will call you back soon. Goodbye.", "תודה רבה. הוא יחזור אליך בהקדם. יום טוב!")
+    val NOT_HEARD get() = L.t("Sorry, I did not hear you. Please say it again.", "סליחה, לא שמעתי. אפשר לחזור על זה?")
+    val SAVED get() = L.t("Got it, I saved your message. Anything else?", "קיבלתי, שמרתי את ההודעה. יש עוד משהו?")
     const val UNKNOWN = "UNKNOWN"
+
+    fun unknownReply(hebrew: Boolean = L.hebrew): String =
+        if (hebrew) "אני נציג דיגיטלי ולא הבנתי מה אמרת. הוא לא פנוי כרגע. אם תרצה להשאיר הודעה, אפשר לומר אותה עכשיו, והוא יחזור אליך בהקדם."
+        else "I am a digital assistant and did not understand that. The owner is not available right now. If you want to leave a message, say it now and the owner will call you back soon."
+
+    val UNKNOWN_REPLY get() = unknownReply()
 
     data class Reply(val intent: String, val text: String)
 
@@ -32,6 +41,6 @@ object CallBrain {
                 return Reply(rule.intent, text)
             }
         }
-        return Reply(UNKNOWN, if (hebrew) "אני אעביר את זה לבעל המספר." else "I will pass this to the owner.")
+        return Reply(UNKNOWN, unknownReply(hebrew))
     }
 }

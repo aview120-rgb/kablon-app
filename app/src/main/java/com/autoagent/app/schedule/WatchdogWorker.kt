@@ -18,6 +18,12 @@ class WatchdogWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val now = System.currentTimeMillis()
         app.db.alarms().enabled().filter { it.triggerAt > now }.forEach { AlarmScheduler.schedule(app, it) }
         SendScheduler.rearmAll(app)
+        for (w in app.db.sends().byStatus(com.autoagent.app.data.SendStatus.WAITING_UNLOCK)) {
+            if (now - w.sendAt > SendWorker.UNLOCK_LIMIT_MS) {
+                app.db.sends().setStatus(w.id, com.autoagent.app.data.SendStatus.ABORTED,
+                    com.autoagent.app.util.L.t("Phone was not unlocked within 60 minutes; not sent.", "הטלפון לא נפתח תוך 60 דקות; לא נשלח."))
+            }
+        }
         app.db.inbox().deleteOlderThan(now - 30L * 86_400_000L)
         AgentStatus.refresh(app)
         return Result.success()

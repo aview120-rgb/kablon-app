@@ -72,6 +72,8 @@ fun VoiceScreen(vm: VoiceViewModel) {
                 Text(L.t("• Schedule SMS to Dana at 6 pm saying I'm on my way", "• תשלח הודעה לדנה מחר בשמונה שאני מאחר"))
                 Text(L.t("• Read my summaries", "• תקריא סיכום  /  מה פספסתי?"))
                 Text(L.t("• Turn auto-answer on / off", "• תפעיל / תכבה מענה אוטומטי"))
+                Text(L.t("• Send a WhatsApp to Dana tomorrow at 8 saying I'm late", "• תשלח וואטסאפ לדנה מחר בשמונה שאני מאחר"))
+                Text(L.t("• Call the clinic and tell me when someone answers", "• תתקשר לקופת חולים ותודיע לי כשנציג עונה"))
             }
         }
         item {

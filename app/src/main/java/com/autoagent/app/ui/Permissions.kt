@@ -10,7 +10,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
-import android.speech.tts.TextToSpeech
 import android.telecom.TelecomManager
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -27,6 +26,8 @@ object Permissions {
         data class Screen(val intent: Intent) : Grant
         data object DialerRole : Grant
         data object SpeechPack : Grant
+        data object Shizuku : Grant
+        data object TtsVoice : Grant
         data object None : Grant
     }
 
@@ -124,7 +125,17 @@ object Permissions {
                 "קול הקראה כדי ש-AutoAgent והעוזר בשיחות ידברו בעברית. הקש להתקנת נתוני קול (למשל במנוע של Google).",
             ),
             SpeechSupport.ttsVoice.value == true,
-            Grant.Screen(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)),
+            Grant.TtsVoice,
+        )
+        val bridge = com.autoagent.app.priv.CallBridge.state.value
+        list += Item(
+            "shizuku", L.t("Talk inside calls (Shizuku)", "דיבור בתוך השיחה (Shizuku)"),
+            L.t(
+                "Optional. Lets the assistant speak straight into calls and hear the line, using wireless debugging (no root). Status: ",
+                "לא חובה. מאפשר לעוזר לדבר ישירות לתוך השיחה ולשמוע את הקו, דרך ניפוי באגים אלחוטי (בלי רוט). מצב: ",
+            ) + com.autoagent.app.priv.CallBridge.statusText(),
+            bridge.connected,
+            Grant.Shizuku,
         )
         return list
     }

@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -96,14 +98,14 @@ private fun MessagesTab(vm: SchedulesViewModel) {
                     Text("${s.appLabel} → ${s.recipientLabel}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     Text(
                         SendStatus.label(s.status),
-                        color = when (s.status) { SendStatus.SENT -> Ok; SendStatus.PENDING, SendStatus.RUNNING -> Warn; else -> Bad },
+                        color = when (s.status) { SendStatus.SENT -> Ok; SendStatus.PENDING, SendStatus.RUNNING, SendStatus.WAITING_UNLOCK -> Warn; else -> Bad },
                     )
                 }
                 Text(TimeText.full(s.sendAt))
                 Text("\"${s.text}\"", style = MaterialTheme.typography.bodyMedium)
                 if (s.resultNote.isNotBlank()) Text(s.resultNote, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 ButtonRow {
-                    if (s.status == SendStatus.PENDING) BigOutlined(L.t("Cancel", "ביטול"), Modifier.weight(1f)) { vm.cancel(s) }
+                    if (s.status == SendStatus.PENDING || s.status == SendStatus.WAITING_UNLOCK) BigOutlined(L.t("Cancel", "ביטול"), Modifier.weight(1f)) { vm.cancel(s) }
                     BigOutlined(L.t("Delete", "מחיקה"), Modifier.weight(1f)) { vm.delete(s) }
                 }
             }
@@ -113,11 +115,13 @@ private fun MessagesTab(vm: SchedulesViewModel) {
     if (editing) SendEditor(vm, onDismiss = { editing = false })
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SendEditor(vm: SchedulesViewModel, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val targets = remember { vm.shareTargets() }
-    val whatsapp = targets.firstOrNull { it.packageName == "com.whatsapp" } ?: targets.firstOrNull { it.packageName == "com.whatsapp.w4b" }
+    val whatsapp = targets.firstOrNull { it.packageName == "com.whatsapp" }
+    val whatsappBiz = targets.firstOrNull { it.packageName == "com.whatsapp.w4b" }
     var channel by remember { mutableStateOf(SendChannel.SMS) }
     var app by remember { mutableStateOf<TargetApp?>(null) }
     var appMenu by remember { mutableStateOf(false) }
@@ -144,9 +148,10 @@ private fun SendEditor(vm: SchedulesViewModel, onDismiss: () -> Unit) {
         title = { Text(L.t("Scheduled message", "הודעה מתוזמנת")) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(channel == SendChannel.SMS, { channel = SendChannel.SMS }, { Text("SMS") })
-                    if (whatsapp != null) FilterChip(channel == SendChannel.WHATSAPP, { channel = SendChannel.WHATSAPP; app = whatsapp }, { Text(L.t("WhatsApp", "וואטסאפ")) })
+                    if (whatsapp != null) FilterChip(channel == SendChannel.WHATSAPP && app?.packageName == whatsapp.packageName, { channel = SendChannel.WHATSAPP; app = whatsapp }, { Text(L.t("WhatsApp", "וואטסאפ")) })
+                    if (whatsappBiz != null) FilterChip(channel == SendChannel.WHATSAPP && app?.packageName == whatsappBiz.packageName, { channel = SendChannel.WHATSAPP; app = whatsappBiz }, { Text(L.t("WA Business", "וואטסאפ עסקי")) })
                     FilterChip(channel == SendChannel.APP, { channel = SendChannel.APP; appMenu = true }, { Text(L.t("Other app", "אפליקציה אחרת")) })
                 }
                 if (channel == SendChannel.APP) {

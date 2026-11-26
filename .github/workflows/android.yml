@@ -3,6 +3,8 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   assembleDebug:
     runs-on: ubuntu-latest
@@ -23,3 +25,17 @@ jobs:
         with:
           name: AutoAgent-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+      # Direct download link that always points to the newest build from main:
+      # https://github.com/<owner>/<repo>/releases/download/autoagent-latest/AutoAgent.apk
+      - name: Publish direct-download release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk AutoAgent.apk
+          gh release delete autoagent-latest --yes --cleanup-tag || true
+          gh release create autoagent-latest AutoAgent.apk \
+            --target "$GITHUB_SHA" \
+            --title "AutoAgent (latest build)" \
+            --notes "Latest AutoAgent build from main (${GITHUB_SHA::7}). Install AutoAgent.apk on your phone." \
+            --latest

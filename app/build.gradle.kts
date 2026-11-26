@@ -16,12 +16,27 @@ android {
         applicationId = "com.autoagent.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = "1.2.0"
+    }
+
+    // One fixed key for every build (local and CI), so each new APK installs over the previous one
+    // and keeps its data. This is a personal sideloaded app; the key is not used for any store.
+    signingConfigs {
+        create("personal") {
+            storeFile = file("autoagent.keystore")
+            storePassword = "autoagent"
+            keyAlias = "autoagent"
+            keyPassword = "autoagent"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("personal")
+        }
         release {
+            signingConfig = signingConfigs.getByName("personal")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
@@ -35,6 +50,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        aidl = true
     }
 
     testOptions {
@@ -81,5 +97,7 @@ dependencies {
     implementation(libs.android.mail)
     implementation(libs.android.activation)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
     testImplementation(libs.junit)
 }

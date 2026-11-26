@@ -85,6 +85,12 @@ fun AutoAnswerScreen(vm: AutoAnswerViewModel) {
                     ),
                     style = MaterialTheme.typography.bodyMedium, color = Warn,
                 )
+                val bridge by com.autoagent.app.priv.CallBridge.state.collectAsState()
+                Text(
+                    L.t("Talking inside calls: ", "דיבור בתוך השיחה: ") + com.autoagent.app.priv.CallBridge.statusText(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (bridge.ready) com.autoagent.app.ui.theme.Ok else Warn,
+                )
                 BigOutlined(L.t("Run a test call (self-managed line)", "הפעלת שיחת בדיקה (קו בדיקה פנימי)"), Modifier.fillMaxWidth()) { vm.testCall() }
             }
         }

@@ -137,9 +137,9 @@ class HebrewParsingTest {
         assertEquals(RuleIntent.TAKE_MESSAGE, CallBrain.reply("אני רוצה להשאיר הודעה", rules, hebrew = true).intent)
         assertEquals(RuleIntent.URGENT, CallBrain.reply("זה דחוף מאוד", rules, hebrew = true).intent)
         assertEquals(RuleIntent.SALES, CallBrain.reply("יש לנו הצעה מיוחדת לביטוח", rules, hebrew = true).intent)
-        assertEquals(CallBrain.UNKNOWN, CallBrain.reply("רציתי לשאול על החבילה מאמזון", rules, hebrew = true).intent)
-        assertEquals("אני אעביר את זה לבעל המספר.", CallBrain.reply("בלה בלה", rules, hebrew = true).text)
-        assertTrue(CallBrain.reply("מי זה", rules, hebrew = true).text.contains("עוזר"))
+        assertEquals(RuleIntent.DELIVERY, CallBrain.reply("רציתי לשאול על החבילה מאמזון", rules, hebrew = true).intent)
+        assertTrue(CallBrain.reply("בלה בלה", rules, hebrew = true).text.contains("לא הבנתי"))
+        assertTrue(CallBrain.reply("מי זה", rules, hebrew = true).text.contains("הנציג הדיגיטלי"))
         assertEquals("השיחה נענית על ידי עוזר ומוקלטת.", CallBrain.GREETING)
     }
 

@@ -15,8 +15,13 @@ import java.util.concurrent.ConcurrentHashMap
 class Speaker(context: Context, usage: Int = AudioAttributes.USAGE_ASSISTANT) {
     private val ready = CompletableDeferred<Boolean>()
     private val pending = ConcurrentHashMap<String, CompletableDeferred<Unit>>()
-    private val tts: TextToSpeech = TextToSpeech(context.applicationContext) { status ->
-        ready.complete(status == TextToSpeech.SUCCESS)
+    private val tts: TextToSpeech = run {
+        val app = context.applicationContext
+        val google = "com.google.android.tts"
+        val hasGoogle = runCatching { app.packageManager.getPackageInfo(google, 0) }.isSuccess
+        // Samsung's engine usually has no Hebrew voice; Google's does.
+        if (hasGoogle) TextToSpeech(app, { status -> ready.complete(status == TextToSpeech.SUCCESS) }, google)
+        else TextToSpeech(app) { status -> ready.complete(status == TextToSpeech.SUCCESS) }
     }
 
     init {
@@ -36,14 +41,7 @@ class Speaker(context: Context, usage: Int = AudioAttributes.USAGE_ASSISTANT) {
     suspend fun speak(text: String): Boolean {
         val ok = withTimeoutOrNull(6_000) { ready.await() } ?: false
         if (!ok) return false
-        runCatching {
-            val loc = com.autoagent.app.util.L.speechLocale
-            val res = tts.setLanguage(loc)
-            if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
-                // Hebrew engines sometimes register under the legacy "iw" code.
-                if (loc.language == "he") tts.setLanguage(Locale.forLanguageTag("iw-IL"))
-            }
-        }
+        applyLanguage()
         val id = UUID.randomUUID().toString()
         val done = CompletableDeferred<Unit>()
         pending[id] = done
@@ -53,6 +51,29 @@ class Speaker(context: Context, usage: Int = AudioAttributes.USAGE_ASSISTANT) {
         }
         withTimeoutOrNull(30_000L + text.length * 120L) { done.await() }
         return true
+    }
+
+    /** Renders [text] to a WAV file (used to play speech into a call through the audio bridge). */
+    suspend fun synthesizeToFile(text: String, out: java.io.File): Boolean {
+        val ok = withTimeoutOrNull(6_000) { ready.await() } ?: false
+        if (!ok) return false
+        applyLanguage()
+        val id = UUID.randomUUID().toString()
+        val done = CompletableDeferred<Unit>()
+        pending[id] = done
+        if (tts.synthesizeToFile(text, Bundle(), out, id) != TextToSpeech.SUCCESS) { pending.remove(id); return false }
+        withTimeoutOrNull(30_000L + text.length * 120L) { done.await() }
+        return out.exists() && out.length() > 44
+    }
+
+    private fun applyLanguage() {
+        runCatching {
+            val loc = com.autoagent.app.util.L.speechLocale
+            val res = tts.setLanguage(loc)
+            if ((res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) && loc.language == "he") {
+                tts.setLanguage(Locale.forLanguageTag("iw-IL"))
+            }
+        }
     }
 
     /** True when the engine has a voice for the app language (checked after init). */

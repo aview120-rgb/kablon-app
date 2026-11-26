@@ -22,8 +22,8 @@ import kotlinx.coroutines.withContext
 sealed interface Command {
     data class SetAlarm(val at: Long, val label: String) : Command
     /** [targets] are candidate spellings, e.g. "דנה" and "לדנה" when the Hebrew ל prefix is ambiguous. */
-    data class CallNumber(val targets: List<String>) : Command
-    data class ScheduleSms(val targets: List<String>, val at: Long, val text: String) : Command
+    data class CallNumber(val targets: List<String>, val watchHold: Boolean = false) : Command
+    data class ScheduleSms(val targets: List<String>, val at: Long, val text: String, val whatsapp: Boolean = false) : Command
     data object ReadSummaries : Command
     data class ToggleAutoAnswer(val on: Boolean) : Command
     data object Help : Command
@@ -36,21 +36,32 @@ object VoiceCommands {
     // ---------- vocabulary ----------
     private val heFillers = setOf("היי", "הי", "אוקיי", "אוקי", "בבקשה", "נא", "יאללה", "רגע", "אז", "טוב")
     private val heAutoAnswer = listOf("מענה אוטומטי", "מענה קולי", "עונה אוטומטי", "מענה אוטומטית", "משיבון", "עוזר שיחות", "מענה לשיחות")
-    private val heOn = setOf("תפעיל", "הפעל", "תפעילי", "להפעיל", "תדליק", "הדלק", "תדליקי", "תפתח", "פתח", "פועל", "דלוק", "תחזיר")
-    private val heOff = setOf("תכבה", "כבה", "תכבי", "לכבות", "תבטל", "בטל", "תבטלי", "לבטל", "תפסיק", "הפסק", "תפסיקי", "עצור", "תעצור", "כבוי", "מבוטל", "תסגור", "סגור")
+    private val heOn = setOf("תפעיל", "הפעל", "תפעילי", "להפעיל", "תפעילו", "תדליק", "הדלק", "תדליקי", "תפתח", "פתח", "פועל", "דלוק", "תחזיר", "תשים", "שים", "תחזירי", "פעיל", "מופעל", "תתחיל", "התחל", "תתחילי")
+    private val heOff = setOf("תכבה", "כבה", "תכבי", "לכבות", "תכבו", "תבטל", "בטל", "תבטלי", "לבטל", "תפסיק", "הפסק", "תפסיקי", "עצור", "תעצור", "תעצרי", "כבוי", "מבוטל", "תסגור", "סגור", "תסגרי", "תוריד", "הורד", "תורידי", "לא פעיל")
     private val heSmsVerbs = setOf(
-        "תשלח", "שלח", "תשלחי", "לשלוח", "תשלחו", "תתזמן", "תזמן", "תתזמני", "לתזמן", "תכתוב", "כתוב", "תכתבי", "לכתוב",
+        "תשלח", "שלח", "תשלחי", "שלחי", "לשלוח", "תשלחו", "תתזמן", "תזמן", "תתזמני", "לתזמן", "תכתוב", "כתוב", "תכתבי", "לכתוב",
+        "תעביר", "תעבירי", "תודיע", "תודיעי", "תסמס", "תסמסי", "תוואטסאפ",
+    )
+    private val heWhatsapp = setOf("וואטסאפ", "ווטסאפ", "וואצאפ", "ווצאפ", "ווטסאפ", "whatsapp", "וואטסאפ עסקי", "וטסאפ", "ווצפ")
+    private val heHoldPhrases = listOf(
+        "ותודיע לי", "תודיע לי", "ותודיעי לי", "תודיעי לי", "ותעדכן אותי", "תעדכן אותי", "ותעדכני אותי", "תעדכני אותי",
+        "ותגיד לי", "תגיד לי", "ותגידי לי", "תגידי לי", "ותצפצף", "תצפצף", "כשעונים", "כשיענו", "כשנציג", "כשנציגה", "כשמישהו עונה",
+        "כשמישהו יענה", "כשהנציג", "כשהנציגה", "ותמתין", "תמתין", "ותחכה", "תחכה",
     )
     private val heMsgWords = setOf("הודעה", "הודעת", "הודעות", "sms", "אסאמאס", "מסרון", "טקסט", "סמס", "מסר")
     private val heAlarmWords = setOf(
         "תעיר", "להעיר", "תעירי", "תעירו", "השכמה", "השכם", "מעורר", "אזעקה", "אלרם", "אלארם", "תזכיר", "תזכירי",
         "תזכורת", "להזכיר", "צלצול", "שעון", "תכוון", "כוון", "תכווני", "לכוון", "תקבע", "קבע", "תקבעי", "תגדיר", "הגדר",
     )
-    private val heAlarmTriggers = setOf("תעיר", "להעיר", "תעירי", "תעירו", "השכמה", "השכם", "מעורר", "אזעקה", "אלרם", "אלארם", "תזכיר", "תזכירי", "תזכורת", "להזכיר")
+    private val heAlarmTriggers = setOf("תעיר", "להעיר", "תעירי", "תעירו", "השכמה", "השכם", "מעורר", "אזעקה", "אלרם", "אלארם", "תזכיר", "תזכירי", "תזכורת", "להזכיר", "תזכירו", "שעון")
     private val heCallVerbs = setOf(
-        "תתקשר", "התקשר", "תתקשרי", "להתקשר", "תחייג", "חייג", "תחייגי", "לחייג", "תצלצל", "צלצל", "תצלצלי", "לצלצל", "תוציא", "חיוג", "שיחה",
+        "תתקשר", "התקשר", "תתקשרי", "להתקשר", "תתקשרו", "תחייג", "חייג", "תחייגי", "חייגי", "לחייג", "תצלצל", "צלצל", "תצלצלי", "לצלצל",
+        "תוציא", "תוציאי", "חיוג", "שיחה", "תרים", "תרימי", "תשיג", "תשיגי", "תדבר", "התקשרי",
     )
-    private val heSummary = listOf("סיכום", "סכם", "תסכם", "תסכמי", "לסכם", "מה פספסתי", "מה חדש", "מה קרה", "תקריא", "הקרא", "תקריאי", "להקריא", "הודעות אחרונות", "התראות", "מי כתב", "מי שלח")
+    private val heSummary = listOf(
+        "סיכום", "סכם", "תסכם", "תסכמי", "לסכם", "מה פספסתי", "מה חדש", "מה קרה", "תקריא", "הקרא", "תקריאי", "להקריא", "הודעות אחרונות",
+        "התראות", "מי כתב", "מי שלח", "מי חיפש", "מי התקשר", "יש הודעות", "יש לי הודעות", "הודעות חדשות", "מה יש לי", "עדכונים", "תעדכן אותי",
+    )
     private val heHelp = listOf("עזרה", "מה אתה יודע", "מה את יודעת", "מה אפשר", "פקודות", "מה אתה יכול", "מה את יכולה")
     private val heDelims = listOf(
         "שאומרת", "שאומר", "שכתוב בה", "שכתוב", "עם הטקסט", "עם התוכן", "עם המילים", "עם ההודעה", "בתוכן", "תוכן",
@@ -92,9 +103,13 @@ object VoiceCommands {
         val startsWithAlarm = words.take(2).any { w -> heAlarmTriggers.any { HebrewText.matchesWithPrefix(w, it) } }
 
         // 2) Scheduled SMS
+        val whatsapp = heWhatsapp.any { HebrewText.containsPhrase(text, it) }
         val smsVerb = indexOfAny(tk, heSmsVerbs)
-        if (!startsWithAlarm && smsVerb >= 0 && (hasAny(tk, heMsgWords) || tk.drop(smsVerb + 1).any { it.startsWith("ל") && it.length > 1 } || tk.contains("ל"))) {
-            return parseHebrewSms(raw, tk, smsVerb, now)
+        val startsWithCall = words.take(2).any { w -> heCallVerbs.any { HebrewText.matchesWithPrefix(w, it) } } && !whatsapp
+        if (!startsWithAlarm && !startsWithCall && smsVerb >= 0 && (whatsapp || hasAny(tk, heMsgWords) || tk.drop(smsVerb + 1).any { it.startsWith("ל") && it.length > 1 } || tk.contains("ל"))) {
+            val tk2 = tk.filterNot { t -> heWhatsapp.any { w -> !w.contains(' ') && HebrewText.matchesWithPrefix(t, w) } || t == "עסקי" }
+            val c = parseHebrewSms(raw, tk2, indexOfAny(tk2, heSmsVerbs).coerceAtLeast(0), now)
+            return if (c is Command.ScheduleSms) c.copy(whatsapp = whatsapp) else c
         }
 
         // 3) Alarm / reminder
@@ -119,10 +134,21 @@ object VoiceCommands {
         // 4) Call
         val callIdx = indexOfAny(words, heCallVerbs)
         if (callIdx >= 0 && callIdx <= 2) {
-            var target = words.drop(callIdx + 1).filter { it !in setOf("עכשיו", "בטלפון", "מיד", "את", "אל", "שיחה", "אליה", "אליו") }
+            var rest = words.drop(callIdx + 1)
+            var watch = false
+            val joined = rest.joinToString(" ")
+            val holdAt = heHoldPhrases.mapNotNull { p -> Regex("(^| )" + Regex.escape(p) + "( |$)").find(joined)?.range?.first }.minOrNull()
+            if (holdAt != null) {
+                watch = true
+                rest = joined.substring(0, holdAt).trim().split(' ').filter { it.isNotEmpty() }
+            } else if (joined.contains("נציג") && (joined.contains("עונה") || joined.contains("יענה"))) {
+                watch = true
+                rest = rest.takeWhile { !it.startsWith("ו") || it.length <= 2 }
+            }
+            var target = rest.filter { it !in setOf("עכשיו", "בטלפון", "מיד", "את", "אל", "שיחה", "אליה", "אליו") }
             if (words[callIdx] in setOf("תוציא", "חיוג", "שיחה") && target.firstOrNull() == "שיחה") target = target.drop(1)
             if (target.isEmpty()) return Command.Incomplete("Who should I call?", "למי להתקשר?")
-            return Command.CallNumber(targetCandidates(target))
+            return Command.CallNumber(targetCandidates(target), watchHold = watch)
         }
 
         // 5) Summaries
@@ -276,9 +302,11 @@ object VoiceCommands {
         }
 
         Regex("""^(?:please\s+)?(?:call|dial|phone|ring)\s+(.+)""").find(s)?.let {
-            val target = it.groupValues[1].removeSuffix(" now").removeSuffix(" please").trim()
+            var target = it.groupValues[1].removeSuffix(" now").removeSuffix(" please").trim()
+            val hold = Regex("""\s+and\s+(?:tell|let|notify|alert|beep)\b.*$""").find(target)
+            if (hold != null) target = target.substring(0, hold.range.first).trim()
             val digits = target.filter { c -> c.isDigit() || c == '+' }
-            return Command.CallNumber(listOf(if (digits.count(Char::isDigit) >= 3 && target.none(Char::isLetter)) digits else target))
+            return Command.CallNumber(listOf(if (digits.count(Char::isDigit) >= 3 && target.none(Char::isLetter)) digits else target), watchHold = hold != null)
         }
 
         if (Regex("""summar|what did i miss|read (?:my )?(?:messages|notifications|inbox)|what'?s new""").containsMatchIn(s)) return Command.ReadSummaries
@@ -307,6 +335,42 @@ object VoiceCommands {
         return null to L.t("I could not find $first in your contacts.", "לא מצאתי את $first באנשי הקשר.")
     }
 
+    /** Israeli local numbers (05x…) → +9725x… for WhatsApp links. */
+    fun toInternational(number: String): String {
+        val d = number.filter { it.isDigit() || it == '+' }
+        return when {
+            d.startsWith("+") -> d
+            d.startsWith("00") -> "+" + d.drop(2)
+            d.startsWith("972") -> "+$d"
+            d.startsWith("0") && d.length in 9..10 -> "+972" + d.drop(1)
+            else -> d
+        }
+    }
+
+    private suspend fun scheduleWhatsapp(context: Context, cmd: Command.ScheduleSms): String {
+        val pm = context.packageManager
+        val pkg = listOf("com.whatsapp", "com.whatsapp.w4b").firstOrNull { runCatching { pm.getPackageInfo(it, 0) }.isSuccess }
+            ?: return L.t("WhatsApp is not installed.", "וואטסאפ לא מותקן.")
+        val (number, label) = withContext(Dispatchers.IO) { resolveNumber(context, cmd.targets) }
+        val recipient = number?.let { toInternational(it) } ?: cmd.targets.firstOrNull().orEmpty()
+        if (number == null && !Contacts.hasPermission(context)) return label
+        val res = SendScheduler.create(
+            context,
+            ScheduledSend(
+                channel = SendChannel.WHATSAPP, packageName = pkg,
+                appLabel = if (pkg == "com.whatsapp") L.t("WhatsApp", "וואטסאפ") else L.t("WA Business", "וואטסאפ עסקי"),
+                recipient = recipient, recipientLabel = if (number != null) label else recipient, text = cmd.text, sendAt = cmd.at,
+            ),
+        )
+        return when (res) {
+            is SendScheduler.CreateResult.Ok -> L.t(
+                "WhatsApp to $label scheduled for ${TimeText.spoken(cmd.at)}: ${cmd.text}",
+                "תזמנתי וואטסאפ ל$label ל${TimeText.spoken(cmd.at)}: ${cmd.text}",
+            )
+            is SendScheduler.CreateResult.Rejected -> res.reason
+        }
+    }
+
     /** Executes a command and returns the sentence to speak back (in the app language). */
     suspend fun execute(context: Context, cmd: Command): String {
         val app = context.applicationContext as AutoAgentApp
@@ -327,11 +391,17 @@ object VoiceCommands {
             is Command.CallNumber -> {
                 val (number, label) = withContext(Dispatchers.IO) { resolveNumber(context, cmd.targets) }
                 if (number == null) label else {
+                    if (cmd.watchHold) com.autoagent.app.calls.HoldWatcher.armedForNextCall = true
                     val err = PhoneAccounts.placeCall(context, number)
-                    if (err == null) { app.log("voice", L.t("Calling $label", "מתקשר ל$label"), true); L.t("Calling $label.", "מתקשר ל$label.") } else err
+                    if (err == null) {
+                        app.log("voice", L.t("Calling $label", "מתקשר ל$label"), true)
+                        if (cmd.watchHold) L.t("Calling $label. I will tell you when a person answers.", "מתקשר ל$label. אודיע לך כשנציג עונה.")
+                        else L.t("Calling $label.", "מתקשר ל$label.")
+                    } else { com.autoagent.app.calls.HoldWatcher.armedForNextCall = false; err }
                 }
             }
             is Command.ScheduleSms -> {
+                if (cmd.whatsapp) return scheduleWhatsapp(context, cmd)
                 if (!SmsSender.hasPermission(context)) return L.t("SMS permission is off. Grant it in Permissions.", "ההרשאה ל-SMS כבויה. אפשר להפעיל אותה במסך ההרשאות.")
                 val (number, label) = withContext(Dispatchers.IO) { resolveNumber(context, cmd.targets) }
                 if (number == null) return label
@@ -365,7 +435,8 @@ object VoiceCommands {
                 "You can say: set alarm for 7 30. Call 050 123 4567, or call a contact name. " +
                     "Schedule SMS to Dana at 6 pm saying I am on my way. Read my summaries. Turn auto-answer on or off.",
                 "אפשר לומר: תעיר אותי בשבע וחצי. תזכיר לי בעוד עשר דקות להוציא את הכביסה. תתקשר לדנה, או תתקשר ל-050 123 4567. " +
-                    "תשלח הודעה לדנה מחר בשמונה שאני מאחר. תקריא סיכום. תפעיל או תכבה מענה אוטומטי.",
+                    "תשלח הודעה לדנה מחר בשמונה שאני מאחר, או תשלח וואטסאפ לדנה. תתקשר לקופת חולים ותודיע לי כשנציג עונה. " +
+                    "תקריא סיכום. תפעיל או תכבה מענה אוטומטי.",
             )
             is Command.Incomplete -> L.t(cmd.en, cmd.he)
             is Command.Unknown -> L.t(

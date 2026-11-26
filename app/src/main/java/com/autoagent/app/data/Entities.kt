@@ -27,6 +27,7 @@ object SendStatus {
     const val FAILED = "FAILED"
     const val ABORTED = "ABORTED"
     const val CANCELLED = "CANCELLED"
+    const val WAITING_UNLOCK = "WAITING_UNLOCK"
 
     fun label(status: String): String = when (status) {
         PENDING -> L.t("Pending", "ממתין")
@@ -35,6 +36,7 @@ object SendStatus {
         FAILED -> L.t("Failed", "נכשל")
         ABORTED -> L.t("Aborted", "בוטל - המסך לא התאים")
         CANCELLED -> L.t("Cancelled", "בוטל")
+        WAITING_UNLOCK -> L.t("Waiting for unlock", "ממתין לפתיחת המסך")
         else -> status
     }
 }
@@ -62,7 +64,19 @@ object RuleIntent {
     const val TAKE_MESSAGE = "TAKE_MESSAGE"
     const val URGENT = "URGENT"
     const val SALES = "SALES"
+    const val WANT_OWNER = "WANT_OWNER"
+    const val DELIVERY = "DELIVERY"
+    const val APPOINTMENT = "APPOINTMENT"
+    const val WRONG_NUMBER = "WRONG_NUMBER"
+    const val GOODBYE = "GOODBYE"
+    const val HELLO = "HELLO"
     const val CUSTOM = "CUSTOM"
+
+    /** After these replies the assistant listens for the caller's message. */
+    val EXPECTS_MESSAGE = setOf(TAKE_MESSAGE, CALLBACK_TIME, URGENT, DELIVERY, APPOINTMENT, WANT_OWNER, "UNKNOWN")
+
+    /** These end the call politely. */
+    val ENDS_CALL = setOf(GOODBYE, WRONG_NUMBER, SALES)
 }
 
 @Entity(tableName = "keyword_rules")

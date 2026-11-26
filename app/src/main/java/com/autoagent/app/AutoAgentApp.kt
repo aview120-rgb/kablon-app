@@ -29,6 +29,7 @@ class AutoAgentApp : Application() {
         L.apply(settings.current.language)
         Notifier.createChannels(this)
         PhoneAccounts.register(this)
+        com.autoagent.app.priv.CallBridge.init(this)
         WatchdogWorker.ensureScheduled(this)
         appScope.launch {
             if (!settings.current.seeded) {

@@ -37,6 +37,9 @@ interface SendDao {
     @Query("SELECT * FROM scheduled_sends WHERE status = 'PENDING' ORDER BY sendAt")
     suspend fun pending(): List<ScheduledSend>
 
+    @Query("SELECT * FROM scheduled_sends WHERE status = :status ORDER BY sendAt")
+    suspend fun byStatus(status: String): List<ScheduledSend>
+
     @Query("SELECT COUNT(*) FROM scheduled_sends WHERE createdAt >= :since")
     suspend fun createdSince(since: Long): Int
 

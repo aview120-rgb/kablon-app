@@ -31,6 +31,27 @@ For Hebrew to work offline, the **Permissions** screen has two extra rows: the H
 Hebrew TTS voice. Limits: it understands the command types above, not arbitrary sentences; ML Kit OCR reads only
 Latin script, so Hebrew printed receipts should be dictated.
 
+## Talking inside calls (Shizuku, no root)
+Ordinary apps cannot play audio into a phone call. AutoAgent can do it through **Shizuku**: Shizuku starts a
+helper as the *shell* user via Android's own **Wireless debugging** (no root, no computer). The shell user may
+write to the call's uplink ("in-call music" output) and read the call audio, so the assistant speaks straight
+into the call, hears the caller and records both sides. Setup is in *Permissions → Talk inside calls*:
+install Shizuku from Google Play → enable Developer options and Wireless debugging → start Shizuku → allow
+AutoAgent. After every reboot, start Shizuku again. Whether the caller hears it depends on the phone's audio
+hardware (reported as `uplink=true/false` in the status); when it isn't available AutoAgent falls back to
+speakerphone automatically. The same bridge lets **"tell me when someone answers"** hear the line directly while
+you wait on hold.
+
+## Locked screen
+SMS, alarms, calls and auto-answer work while locked. For WhatsApp/app sends AutoAgent turns the screen on and asks
+Android to dismiss the lock: a swipe lock opens by itself; a PIN/fingerprint lock shows Android's own prompt and the
+message is sent right after you unlock (it waits up to 60 minutes). The lock is never bypassed.
+
+## Direct download
+Every push to `main` publishes the APK at
+`https://github.com/aview120-rgb/kablon-app/releases/download/autoagent-latest/AutoAgent.apk`.
+All builds are signed with the same key (`app/autoagent.keystore`), so new versions install over old ones.
+
 ## Build
 
 ### Android Studio
