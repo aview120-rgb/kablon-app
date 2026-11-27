@@ -384,7 +384,7 @@ def api_start_video(image_b64, prompt, duration, seed, quality):
     try:
         img = decode_b64_image(image_b64)
         job_id = start_video(img, prompt, duration, int(float(seed or -1)), quality or "fast")
-        return ok(job_id=job_id, **job_public(job_id))
+        return ok(**job_public(job_id))
     except Exception as e:
         return fail(e)
 
