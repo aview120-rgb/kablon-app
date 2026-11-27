@@ -1,0 +1,14 @@
+{
+  "name": "kablon-queue-server",
+  "version": "1.0.0",
+  "description": "שרת תור משימות אסינכרוני לסנכרון עם אפליקציית AutoAgent (עובד כשהטלפון לא מקוון)",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=18.17" },
+  "license": "UNLICENSED",
+  "private": true
+}

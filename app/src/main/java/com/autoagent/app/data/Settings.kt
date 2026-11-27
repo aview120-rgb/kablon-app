@@ -14,12 +14,24 @@ data class SettingsState(
     val imapUser: String = "",
     val imapPasswordSet: Boolean = false,
     val seeded: Boolean = false,
-    /** "auto" (follow phone), "he" or "en". */
-    val language: String = "auto",
+    /** "he" (default, full right-to-left Hebrew), "en" or "auto" (follow phone). */
+    val language: String = "he",
     /** Use Google's online recognizer when the offline pack for the language is missing. */
     val allowOnlineSpeech: Boolean = true,
     /** Use the Shizuku in-call audio bridge (speak into the call / hear the line) when available. */
     val useCallBridge: Boolean = true,
+    /** Task-queue server sync. */
+    val syncEnabled: Boolean = false,
+    val serverUrl: String = "",
+    val serverTokenSet: Boolean = false,
+    val deviceId: String = "",
+    val deviceName: String = "",
+    /** Upload notification text (inbox) so the server can build digests while the phone is off. Off by default. */
+    val uploadInbox: Boolean = false,
+    /** Let server tasks press Send by themselves. When off they are only prepared and you press Send. */
+    val remoteAutoSend: Boolean = false,
+    /** Keep a live (long-poll) connection while the app process runs, for instant delivery. */
+    val liveConnection: Boolean = true,
 )
 
 /** Small SharedPreferences-backed settings store exposed as a StateFlow. Stays on device. */
@@ -37,9 +49,17 @@ class Settings(context: Context) {
         imapUser = prefs.getString(K_USER, "") ?: "",
         imapPasswordSet = !prefs.getString(K_PASS, null).isNullOrEmpty(),
         seeded = prefs.getBoolean(K_SEEDED, false),
-        language = prefs.getString(K_LANG, "auto") ?: "auto",
+        language = prefs.getString(K_LANG, "he") ?: "he",
         allowOnlineSpeech = prefs.getBoolean(K_ONLINE, true),
         useCallBridge = prefs.getBoolean(K_BRIDGE, true),
+        syncEnabled = prefs.getBoolean(K_SYNC, false),
+        serverUrl = prefs.getString(K_URL, "") ?: "",
+        serverTokenSet = !prefs.getString(K_TOKEN, null).isNullOrEmpty(),
+        deviceId = prefs.getString(K_DEVICE, "") ?: "",
+        deviceName = prefs.getString(K_DEVICE_NAME, "") ?: "",
+        uploadInbox = prefs.getBoolean(K_UPLOAD_INBOX, false),
+        remoteAutoSend = prefs.getBoolean(K_REMOTE_SEND, false),
+        liveConnection = prefs.getBoolean(K_LIVE, true),
     )
 
     private fun edit(block: android.content.SharedPreferences.Editor.() -> Unit) {
@@ -71,6 +91,30 @@ class Settings(context: Context) {
 
     fun encryptedImapPassword(): String? = prefs.getString(K_PASS, null)
 
+    /** Stable random id for this phone on the server (created once). */
+    fun ensureDeviceId(): String {
+        current.deviceId.takeIf { it.isNotBlank() }?.let { return it }
+        val id = "android-" + java.util.UUID.randomUUID().toString().take(13)
+        edit {
+            putString(K_DEVICE, id)
+            if (prefs.getString(K_DEVICE_NAME, "").isNullOrBlank()) putString(K_DEVICE_NAME, "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
+        }
+        return id
+    }
+
+    /** [encryptedToken] null keeps the saved token. */
+    fun setServer(url: String, deviceName: String, encryptedToken: String?) = edit {
+        putString(K_URL, url.trim().trimEnd('/'))
+        putString(K_DEVICE_NAME, deviceName.trim())
+        if (encryptedToken != null) putString(K_TOKEN, encryptedToken)
+    }
+
+    fun encryptedServerToken(): String? = prefs.getString(K_TOKEN, null)
+    fun setSyncEnabled(on: Boolean) = edit { putBoolean(K_SYNC, on) }
+    fun setUploadInbox(on: Boolean) = edit { putBoolean(K_UPLOAD_INBOX, on) }
+    fun setRemoteAutoSend(on: Boolean) = edit { putBoolean(K_REMOTE_SEND, on) }
+    fun setLiveConnection(on: Boolean) = edit { putBoolean(K_LIVE, on) }
+
     companion object {
         private const val K_AUTO = "auto_answer"
         private const val K_DELAY = "auto_answer_delay"
@@ -83,5 +127,13 @@ class Settings(context: Context) {
         private const val K_LANG = "language"
         private const val K_ONLINE = "online_speech"
         private const val K_BRIDGE = "call_bridge"
+        private const val K_SYNC = "sync_enabled"
+        private const val K_URL = "server_url"
+        private const val K_TOKEN = "server_token"
+        private const val K_DEVICE = "device_id"
+        private const val K_DEVICE_NAME = "device_name"
+        private const val K_UPLOAD_INBOX = "upload_inbox"
+        private const val K_REMOTE_SEND = "remote_auto_send"
+        private const val K_LIVE = "live_connection"
     }
 }

@@ -13,6 +13,7 @@ coroutines = "1.11.0"
 mlkitText = "16.0.1"
 androidMail = "1.6.8"
 junit = "4.13.2"
+orgJson = "20250517"
 shizuku = "13.1.5"
 
 [libraries]
@@ -37,6 +38,8 @@ mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition"
 android-mail = { group = "com.sun.mail", name = "android-mail", version.ref = "androidMail" }
 android-activation = { group = "com.sun.mail", name = "android-activation", version.ref = "androidMail" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 shizuku-api = { group = "dev.rikka.shizuku", name = "api", version.ref = "shizuku" }
 shizuku-provider = { group = "dev.rikka.shizuku", name = "provider", version.ref = "shizuku" }
 

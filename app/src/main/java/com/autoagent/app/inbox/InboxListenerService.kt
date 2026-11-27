@@ -44,7 +44,12 @@ class InboxListenerService : NotificationListenerService() {
             if (text.isEmpty() && title.isEmpty()) return
             entries += entry(sbn.packageName, label, title.ifEmpty { label }, text.ifEmpty { title }, sbn.postTime)
         }
-        app.appScope.launch { entries.forEach { app.db.inbox().insert(it) } }
+        app.appScope.launch {
+            entries.forEach {
+                // Only new (non-duplicate) entries are queued for the server, and only if inbox upload is on.
+                if (app.db.inbox().insert(it) != -1L) com.autoagent.app.sync.Outbox.addInbox(app, it.appLabel, it.sender, it.text, it.postedAt)
+            }
+        }
     }
 
     private fun entry(pkg: String, label: String, sender: String, text: String, ts: Long) = InboxEntry(

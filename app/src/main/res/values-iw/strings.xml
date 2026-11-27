@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Hebrew (iw) -->
 <resources>
     <string name="app_name">AutoAgent</string>
     <string name="share_label">קבלה ל-AutoAgent</string>
-    <string name="accessibility_label">AutoAgent - שליחות מתוזמנות</string>
+    <string name="accessibility_label">AutoAgent - אוטומציה והודעות</string>
     <string name="listener_label">AutoAgent - תיבת הודעות</string>
-    <string name="accessibility_description">משמש רק כשמגיע הזמן של הודעה שתזמנת בוואטסאפ או באפליקציה אחרת שבחרת. AutoAgent פותח את האפליקציה, מדביק בדיוק את הטקסט ששמרת, לוחץ שלח פעם אחת ורושם את התוצאה. אם המסך לא תואם למה שמצופה, הוא עוצר ושולח לך התראה. הוא לא קורא מסכים אחרים ולא שולח שום דבר שלא תזמנת.</string>
+    <string name="accessibility_description">משמש רק כשמגיע הזמן של הודעה שתזמנת (בטלפון או דרך שרת המשימות שלך) בוואטסאפ או באפליקציה אחרת שבחרת. AutoAgent פותח את האפליקציה, מדביק בדיוק את הטקסט ששמרת, ולוחץ שלח פעם אחת — או רק מכין את ההודעה ומשאיר לך ללחוץ שלח — ורושם את התוצאה ביומן. פעולות מסך רצות אחת אחרי השנייה בתור, ואם המסך לא תואם למה שמצופה, הוא עוצר ושולח לך התראה. הוא לא קורא מסכים אחרים ולא שולח שום דבר שלא תזמנת.</string>
 </resources>

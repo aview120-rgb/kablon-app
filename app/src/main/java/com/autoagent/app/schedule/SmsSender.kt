@@ -58,8 +58,10 @@ class SmsResultReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val s = app.db.sends().get(id)
-                app.db.sends().setStatus(id, if (ok) SendStatus.SENT else SendStatus.FAILED, note)
-                app.log("sms", "$note to ${s?.recipientLabel ?: "?"}", ok)
+                val status = if (ok) SendStatus.SENT else SendStatus.FAILED
+                app.db.sends().setStatus(id, status, note)
+                app.log("sms", L.t("$note to ${s?.recipientLabel ?: "?"}", "$note ל${s?.recipientLabel ?: "?"}"), ok)
+                s?.remoteTaskId?.let { com.autoagent.app.sync.RemoteTaskExecutor.onSendFinished(app, it, status, note) }
                 Notifier.event(context, if (ok) L.t("Scheduled SMS sent", "SMS מתוזמן נשלח") else L.t("Scheduled SMS failed", "SMS מתוזמן נכשל"), "${s?.recipientLabel ?: ""}: $note", "schedules")
                 AgentStatus.refresh(context)
             } finally {

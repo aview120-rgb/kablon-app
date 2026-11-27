@@ -18,4 +18,7 @@ interface IPrivService {
 
     /** Adds [component] to the enabled accessibility services. Returns "" or an error. */
     String enableAccessibility(String component) = 5;
+
+    /** Removes and re-adds [component] so Android binds the accessibility service again. Returns "" or an error. */
+    String restartAccessibility(String component) = 6;
 }

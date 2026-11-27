@@ -41,6 +41,9 @@ import com.autoagent.app.ui.screens.PermissionsScreen
 import com.autoagent.app.ui.screens.ReceiptsScreen
 import com.autoagent.app.ui.screens.SchedulesScreen
 import com.autoagent.app.ui.screens.VoiceScreen
+import com.autoagent.app.ui.screens.SyncScreen
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material.icons.filled.CloudSync
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
@@ -60,6 +63,7 @@ private fun titles() = mapOf(
     "receipts" to L.t("Receipts", "קבלות"),
     "voice" to L.t("Voice", "פקודות קוליות"),
     "permissions" to L.t("Permissions", "הרשאות"),
+    "sync" to L.t("Sync & server", "סנכרון ושרת"),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,6 +95,7 @@ fun AppRoot(request: LaunchRequest) {
 
     Scaffold(
         topBar = {
+            Column {
             TopAppBar(
                 title = { Text(titles[current] ?: "AutoAgent") },
                 actions = {
@@ -100,11 +105,16 @@ fun AppRoot(request: LaunchRequest) {
                             style = MaterialTheme.typography.labelLarge,
                         )
                     }
+                    IconButton(onClick = { go("sync") }) {
+                        Icon(Icons.Filled.CloudSync, contentDescription = L.t("Sync & server", "סנכרון ושרת"))
+                    }
                     IconButton(onClick = { go("permissions") }) {
                         Icon(Icons.Filled.VerifiedUser, contentDescription = L.t("Permissions", "הרשאות"))
                     }
                 },
             )
+            StatusStrip(::go)
+            }
         },
         bottomBar = {
             NavigationBar {
@@ -127,6 +137,7 @@ fun AppRoot(request: LaunchRequest) {
             composable("receipts") { ReceiptsScreen(receiptsVm) }
             composable("voice") { VoiceScreen(viewModel()) }
             composable("permissions") { PermissionsScreen() }
+            composable("sync") { SyncScreen(viewModel()) }
         }
     }
 }

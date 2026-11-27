@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>קבלון — תור משימות</title>
+<style>
+  :root { --bg:#0e1116; --card:#1a2029; --fg:#e6e8ec; --mut:#9aa3ad; --pri:#7fb8ff; --ok:#4caf50; --bad:#e53935; --warn:#ffc857; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, "Segoe UI", Arial, sans-serif; background:var(--bg); color:var(--fg); }
+  header { padding:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; border-bottom:1px solid #263040; }
+  h1 { font-size:20px; margin:0; flex:1; }
+  main { padding:16px; display:grid; gap:16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); max-width:1300px; margin:auto; }
+  section { background:var(--card); border-radius:12px; padding:16px; }
+  h2 { font-size:17px; margin:0 0 12px; }
+  label { display:block; font-size:14px; color:var(--mut); margin:8px 0 4px; }
+  input, select, textarea, button { font:inherit; width:100%; padding:8px 10px; border-radius:8px; border:1px solid #33404f; background:#111720; color:var(--fg); }
+  textarea { min-height:70px; }
+  button { background:var(--pri); color:#00213f; border:0; font-weight:600; cursor:pointer; margin-top:12px; }
+  button.small { width:auto; padding:4px 10px; margin:0; background:#33404f; color:var(--fg); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:start; padding:6px 4px; border-bottom:1px solid #263040; vertical-align:top; }
+  .pill { padding:2px 8px; border-radius:99px; font-size:12px; white-space:nowrap; background:#33404f; }
+  .ready,.delivered { background:#1b3a5c; } .done { background:#1e4620; } .error,.failed,.expired { background:#5c1b1b; } .cancelled { background:#3d3d3d; }
+  .mut { color:var(--mut); font-size:13px; } .row { display:flex; gap:8px; } .row > * { flex:1; }
+  #msg { min-height:20px; font-size:14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>קבלון — שרת תור משימות</h1>
+  <input id="token" type="password" placeholder="אסימון גישה (KABLON_TOKEN)" style="max-width:280px">
+  <button class="small" id="save">שמירה</button>
+</header>
+<main>
+  <section>
+    <h2>משימה חדשה</h2>
+    <label for="type">סוג</label>
+    <select id="type"></select>
+    <label for="device">מכשיר יעד</label>
+    <select id="device"><option value="">כל מכשיר (הראשון שמסתנכרן)</option></select>
+    <div id="msgFields">
+      <div class="row">
+        <div><label for="channel">ערוץ</label>
+          <select id="channel"><option value="WHATSAPP">WhatsApp</option><option value="SMS">SMS</option><option value="APP">אפליקציה אחרת</option></select></div>
+        <div><label for="pkg">חבילה (לאפליקציה אחרת)</label><input id="pkg" placeholder="org.telegram.messenger" dir="ltr"></div>
+      </div>
+      <div class="row">
+        <div><label for="recipient">נמען (מספר או שם מדויק)</label><input id="recipient"></div>
+        <div><label for="label">שם לתצוגה</label><input id="label"></div>
+      </div>
+    </div>
+    <div id="urlFields" hidden><label for="url">כתובת</label><input id="url" dir="ltr" placeholder="https://"><label for="contains">טקסט שצריך להופיע (רשות)</label><input id="contains"></div>
+    <div id="textFields"><label for="text">טקסט (אפשר {{date}} {{time}} {{weekday}})</label><textarea id="text"></textarea></div>
+    <div class="row">
+      <div><label for="runAt">מתי</label><input id="runAt" type="datetime-local"></div>
+      <div><label for="every">חזרה כל (דקות, רשות)</label><input id="every" type="number" min="1"></div>
+    </div>
+    <button id="create">הוספה לתור</button>
+    <div id="msg" role="status"></div>
+  </section>
+  <section>
+    <h2>מכשירים</h2>
+    <table><thead><tr><th>מכשיר</th><th>נראה לאחרונה</th><th>סוללה</th><th>רשת</th><th>נגישות</th></tr></thead><tbody id="devices"></tbody></table>
+  </section>
+  <section style="grid-column: 1 / -1">
+    <h2>משימות <span class="mut" id="counts"></span></h2>
+    <table><thead><tr><th>זמן</th><th>סוג</th><th>מכשיר</th><th>מצב</th><th>תוצאה</th><th></th></tr></thead><tbody id="tasks"></tbody></table>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let meta = { types: {}, statuses: {} };
+$('token').value = localStorage.getItem('kablonToken') || '';
+$('save').onclick = () => { localStorage.setItem('kablonToken', $('token').value.trim()); load(); };
+const NET = { wifi: 'Wi-Fi', cellular: 'סלולרי', ethernet: 'כבל', vpn: 'VPN', offline: 'לא מחובר', other: 'אחר' };
+const ACC = { ready: 'פעיל', enabled_not_bound: 'לא מגיב', disabled: 'כבוי' };
+const net = (c) => c ? (NET[c.replace('-noinet', '')] || c) + (c.endsWith('-noinet') ? ' (ללא אינטרנט)' : '') : '—';
+const fmt = (ms) => ms ? new Date(ms).toLocaleString('he-IL') : '—';
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + $('token').value.trim() } });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || ('שגיאה ' + r.status));
+  return body;
+}
+
+function toggleFields() {
+  const t = $('type').value;
+  $('msgFields').hidden = !t.endsWith('_message');
+  $('urlFields').hidden = t !== 'fetch_url';
+  $('textFields').hidden = t === 'fetch_url' || t === 'digest';
+}
+$('type').onchange = toggleFields;
+
+$('create').onclick = async () => {
+  const type = $('type').value;
+  const payload = {};
+  if (type.endsWith('_message')) Object.assign(payload, { channel: $('channel').value, recipient: $('recipient').value.trim(), recipientLabel: $('label').value.trim() || $('recipient').value.trim(), packageName: $('pkg').value.trim() || undefined });
+  if (type === 'fetch_url') Object.assign(payload, { url: $('url').value.trim(), contains: $('contains').value.trim() || undefined });
+  if (!$('textFields').hidden) payload.text = $('text').value;
+  const body = { type, payload, deviceId: $('device').value || undefined };
+  if ($('runAt').value) body.runAt = new Date($('runAt').value).getTime();
+  if ($('every').value) body.repeat = { everyMinutes: Number($('every').value) };
+  try { await api('/api/v1/tasks', { method: 'POST', body: JSON.stringify(body) }); $('msg').textContent = 'המשימה נוספה לתור ✓'; load(); }
+  catch (e) { $('msg').textContent = e.message; }
+};
+
+async function cancel(id) { try { await api('/api/v1/tasks/' + id, { method: 'DELETE' }); load(); } catch (e) { alert(e.message); } }
+
+async function load() {
+  try {
+    meta = await api('/api/v1/meta');
+    if (!$('type').options.length) { for (const [k, v] of Object.entries(meta.types)) $('type').add(new Option(v, k)); toggleFields(); }
+    const { devices } = await api('/api/v1/devices');
+    const sel = $('device').value;
+    $('device').length = 1;
+    for (const d of devices) $('device').add(new Option(d.name || d.id, d.id));
+    $('device').value = sel;
+    $('devices').innerHTML = devices.map((d) => `<tr><td>${esc(d.name)}<div class="mut">${esc(d.appVersion)}</div></td><td>${fmt(d.lastSeen)}</td>
+      <td>${d.status?.battery ?? '—'}%${d.status?.charging ? ' ⚡' : ''}</td><td>${esc(net(d.status?.network))}</td><td>${esc(ACC[d.status?.accessibility] ?? d.status?.accessibility ?? '—')}</td></tr>`).join('') || '<tr><td colspan="5" class="mut">עדיין לא התחבר אף מכשיר</td></tr>';
+    const { tasks } = await api('/api/v1/tasks?limit=200');
+    const counts = {};
+    tasks.forEach((t) => counts[t.status] = (counts[t.status] || 0) + 1);
+    $('counts').textContent = Object.entries(counts).map(([k, v]) => `${meta.statuses[k] || k}: ${v}`).join(' · ');
+    $('tasks').innerHTML = tasks.map((t) => `<tr><td>${fmt(t.runAt)}</td><td>${esc(meta.types[t.type] || t.type)}${t.repeat ? ' 🔁' : ''}</td><td>${esc(t.deviceId || 'כל מכשיר')}</td>
+      <td><span class="pill ${t.status}">${esc(meta.statuses[t.status] || t.status)}</span></td>
+      <td>${esc(t.deviceResult?.note || t.error || t.result?.text || '')}</td>
+      <td>${['done','failed','expired','error','cancelled'].includes(t.status) ? '' : `<button class="small" onclick="cancel('${esc(t.id)}')">ביטול</button>`}</td></tr>`).join('') || '<tr><td colspan="6" class="mut">אין משימות</td></tr>';
+  } catch (e) { $('msg').textContent = e.message; }
+}
+load();
+setInterval(load, 5000);
+</script>
+</body>
+</html>

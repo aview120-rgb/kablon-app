@@ -63,7 +63,7 @@ object ReceiptIngest {
             sourceRef = ref,
         )
         val id = withContext(Dispatchers.IO) { app.db.receipts().insert(receipt) }
-        app.log("receipt", "Saved receipt: ${p.merchant.ifBlank { "?" }} ${p.total ?: ""} ${p.currency}", true)
+        app.log("receipt", com.autoagent.app.util.L.t("Saved receipt: ", "נשמרה קבלה: ") + "${p.merchant.ifBlank { "?" }} ${p.total ?: ""} ${p.currency}", true)
         val missing = listOfNotNull(
             L.t("merchant", "בית העסק").takeIf { p.merchant.isBlank() },
             L.t("date", "תאריך").takeIf { p.dateMillis == null },

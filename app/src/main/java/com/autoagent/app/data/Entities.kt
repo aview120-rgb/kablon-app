@@ -28,6 +28,10 @@ object SendStatus {
     const val ABORTED = "ABORTED"
     const val CANCELLED = "CANCELLED"
     const val WAITING_UNLOCK = "WAITING_UNLOCK"
+    /** The accessibility service was not connected; resumes by itself when it comes back. */
+    const val WAITING_SERVICE = "WAITING_SERVICE"
+    /** "Prepare only": the chat is open with the text typed in; you press Send yourself. */
+    const val PREPARED = "PREPARED"
 
     fun label(status: String): String = when (status) {
         PENDING -> L.t("Pending", "ממתין")
@@ -37,6 +41,8 @@ object SendStatus {
         ABORTED -> L.t("Aborted", "בוטל - המסך לא התאים")
         CANCELLED -> L.t("Cancelled", "בוטל")
         WAITING_UNLOCK -> L.t("Waiting for unlock", "ממתין לפתיחת המסך")
+        WAITING_SERVICE -> L.t("Waiting for accessibility service", "ממתין לשירות הנגישות")
+        PREPARED -> L.t("Prepared — press Send", "מוכנה — לחץ שלח")
         else -> status
     }
 }
@@ -56,6 +62,12 @@ data class ScheduledSend(
     val status: String = SendStatus.PENDING,
     val resultNote: String = "",
     val createdAt: Long = System.currentTimeMillis(),
+    /** Server task this send came from (null = created on the phone). */
+    @ColumnInfo(defaultValue = "NULL")
+    val remoteTaskId: String? = null,
+    /** false = only prepare the message in the app and let you press Send. */
+    @ColumnInfo(defaultValue = "1")
+    val autoSend: Boolean = true,
 )
 
 object RuleIntent {
@@ -150,4 +162,66 @@ data class ActionLog(
     val kind: String,
     val message: String,
     val ok: Boolean,
+)
+
+/** Local state of a task the server prepared. Kept until its outcome reached the server. */
+object RemoteState {
+    const val RECEIVED = "RECEIVED"
+    const val SCHEDULED = "SCHEDULED"
+    const val RUNNING = "RUNNING"
+    const val DONE = "DONE"
+    const val FAILED = "FAILED"
+    const val EXPIRED = "EXPIRED"
+    const val CANCELLED = "CANCELLED"
+
+    val FINAL = setOf(DONE, FAILED, EXPIRED, CANCELLED)
+
+    fun label(state: String): String = when (state) {
+        RECEIVED -> L.t("Received", "התקבלה")
+        SCHEDULED -> L.t("Scheduled on phone", "מתוזמנת בטלפון")
+        RUNNING -> L.t("Running", "בביצוע")
+        DONE -> L.t("Done", "בוצעה")
+        FAILED -> L.t("Failed", "נכשלה")
+        EXPIRED -> L.t("Expired", "פג תוקף")
+        CANCELLED -> L.t("Cancelled", "בוטלה")
+        else -> state
+    }
+}
+
+@Entity(tableName = "remote_tasks")
+data class RemoteTask(
+    /** Server id. */
+    @PrimaryKey val id: String,
+    val type: String,
+    val title: String,
+    /** The server's prepared result as JSON. */
+    val resultJson: String,
+    /** When to run, already converted to phone time. */
+    val executeAt: Long,
+    val maxLateMinutes: Int,
+    val state: String = RemoteState.RECEIVED,
+    val note: String = "",
+    /** True once the server confirmed it received the final outcome. */
+    val reported: Boolean = false,
+    /** True once the server was told the phone stored it. */
+    val ackSent: Boolean = false,
+    val receivedAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis(),
+)
+
+object OutboxKind {
+    const val INBOX = "inbox"
+    const val LOG = "log"
+    const val TASK = "task"
+}
+
+/** Something the phone collected while offline, uploaded on the next sync (deleted after the server accepted it). */
+@Entity(tableName = "outbox", indices = [Index(value = ["clientId"], unique = true)])
+data class OutboxItem(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val clientId: String = java.util.UUID.randomUUID().toString(),
+    val kind: String,
+    val dataJson: String,
+    val at: Long = System.currentTimeMillis(),
+    val attempts: Int = 0,
 )

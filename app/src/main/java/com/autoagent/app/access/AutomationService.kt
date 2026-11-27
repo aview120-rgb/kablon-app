@@ -3,19 +3,16 @@ package com.autoagent.app.access
 import com.autoagent.app.util.L
 import android.accessibilityservice.AccessibilityService
 import android.app.KeyguardManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.autoagent.app.R
 import com.autoagent.app.data.ScheduledSend
-import com.autoagent.app.data.SendChannel
 import com.autoagent.app.util.Notifier
 import kotlinx.coroutines.delay
 
@@ -26,7 +23,14 @@ import kotlinx.coroutines.delay
  */
 class AutomationService : AccessibilityService() {
 
-    data class Outcome(val sent: Boolean, val aborted: Boolean, val note: String, val waitUnlock: Boolean = false)
+    data class Outcome(
+        val sent: Boolean,
+        val aborted: Boolean,
+        val note: String,
+        val waitUnlock: Boolean = false,
+        /** "Prepare only": the chat is open with the text in the box; you press Send. */
+        val prepared: Boolean = false,
+    )
 
     private val unlockReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context, intent: Intent) {
@@ -37,40 +41,50 @@ class AutomationService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        androidx.core.content.ContextCompat.registerReceiver(
-            this, unlockReceiver, android.content.IntentFilter(Intent.ACTION_USER_PRESENT), androidx.core.content.ContextCompat.RECEIVER_EXPORTED,
-        )
+        runCatching {
+            androidx.core.content.ContextCompat.registerReceiver(
+                this, unlockReceiver, android.content.IntentFilter(Intent.ACTION_USER_PRESENT), androidx.core.content.ContextCompat.RECEIVER_EXPORTED,
+            )
+        }
+        AccessibilityHealth.onConnected(this)
+        // Recovery: anything that was waiting for the service continues now.
+        com.autoagent.app.schedule.SendScheduler.resumeWaitingService(this)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // The window tree is polled on demand inside performSend; no background observation of other apps.
+        // Only a heartbeat. The window tree is read on demand inside performSend; other apps are not observed.
+        AccessibilityHealth.onEvent()
     }
 
     override fun onInterrupt() {}
 
     override fun onUnbind(intent: Intent?): Boolean {
         instance = null
+        AccessibilityHealth.onDisconnected(this)
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         instance = null
         runCatching { unregisterReceiver(unlockReceiver) }
+        AccessibilityHealth.onDisconnected(this)
         super.onDestroy()
     }
 
     private fun abort(note: String) = Outcome(sent = false, aborted = true, note = note)
     private fun fail(note: String) = Outcome(sent = false, aborted = false, note = note)
     private fun ok(note: String) = Outcome(sent = true, aborted = false, note = note)
+    private fun prepared(note: String) = Outcome(sent = false, aborted = false, note = note, prepared = true)
 
-    private fun isPhone(s: String) = s.trim().matches(Regex("""\+?[\d\s\-()]{6,}"""))
+    private fun isPhone(s: String) = MessengerProfiles.isPhone(s)
+
+    /** True when the app opens straight into the right chat (deep link), so no recipient has to be picked on screen. */
+    private fun hasDirectLink(job: ScheduledSend) = MessengerProfiles.forPackage(job.packageName).deepLink?.invoke(job.recipient, job.text) != null
 
     private fun buildIntent(job: ScheduledSend): Intent? {
         val pm = packageManager
-        if (job.channel == SendChannel.WHATSAPP && isPhone(job.recipient)) {
-            val digits = job.recipient.filter { it.isDigit() }
-            val uri = Uri.parse("https://api.whatsapp.com/send?phone=$digits&text=" + Uri.encode(job.text))
-            val i = Intent(Intent.ACTION_VIEW, uri).setPackage(job.packageName)
+        MessengerProfiles.forPackage(job.packageName).deepLink?.invoke(job.recipient, job.text)?.let { link ->
+            val i = Intent(Intent.ACTION_VIEW, Uri.parse(link)).setPackage(job.packageName)
             if (i.resolveActivity(pm) != null) return i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         val share = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, job.text).setPackage(job.packageName)
@@ -107,6 +121,12 @@ class AutomationService : AccessibilityService() {
         progress(job, true)
         try {
             return drive(job, intent)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // A stale node or an app crash must never take the service down.
+            AccessibilityHealth.onError("drive", e)
+            return abort(L.t("Unexpected screen error: ${e.javaClass.simpleName}", "שגיאת מסך לא צפויה: ${e.javaClass.simpleName}"))
         } finally {
             progress(job, false)
         }
@@ -122,7 +142,7 @@ class AutomationService : AccessibilityService() {
         if (!waitFor(10_000) { rootInActiveWindow?.packageName?.toString() == job.packageName }) {
             return abort(L.t("${job.appLabel} did not come to the foreground", "${job.appLabel} לא נפתחה על המסך"))
         }
-        val directChat = job.channel == SendChannel.WHATSAPP && isPhone(job.recipient)
+        val directChat = hasDirectLink(job)
         var recipientChosen = directChat
         var shareConfirmed = false
         var textFilledByUs = false
@@ -150,6 +170,9 @@ class AutomationService : AccessibilityService() {
                 val input = inputs[0]
                 val current = if (input.isShowingHintText) "" else input.text?.toString()?.trim().orEmpty()
                 when {
+                    current == saved && !job.autoSend -> {
+                        return prepared(L.t("Message is ready in ${job.appLabel}; press Send yourself", "ההודעה מוכנה ב-${job.appLabel}; לחץ שלח בעצמך"))
+                    }
                     current == saved -> {
                         if (!clickNode(send)) return fail(L.t("Send button did not accept the tap", "כפתור השליחה לא הגיב ללחיצה"))
                         delay(1500)
@@ -173,6 +196,10 @@ class AutomationService : AccessibilityService() {
                     current.isEmpty() -> continue
                     else -> return abort(L.t("Text box shows different text than your saved message; not sent", "בתיבת הטקסט יש טקסט שונה מההודעה ששמרת; לא נשלח"))
                 }
+            }
+
+            if (send != null && inputs.isEmpty() && recipientChosen && !directChat && !shareConfirmed && !job.autoSend) {
+                return prepared(L.t("Recipient selected in ${job.appLabel}; press Send yourself", "הנמען נבחר ב-${job.appLabel}; לחץ שלח בעצמך"))
             }
 
             if (send != null && inputs.isEmpty() && recipientChosen && !directChat && !shareConfirmed) {
@@ -226,15 +253,14 @@ class AutomationService : AccessibilityService() {
         collect(root) { !it.isEditable && it.isVisibleToUser && it.text?.toString()?.trim() == saved }.isNotEmpty()
 
     private fun findSendButton(root: AccessibilityNodeInfo, pkg: String): AccessibilityNodeInfo? {
-        for (id in listOf("send", "send_button", "sendButton", "btn_send", "chat_send_button", "conversation_send")) {
-            root.findAccessibilityNodeInfosByViewId("$pkg:id/$id")
+        for (id in MessengerProfiles.sendViewIds(pkg)) {
+            root.findAccessibilityNodeInfosByViewId(id)
                 .firstOrNull { it.isVisibleToUser && it.isEnabled }
                 ?.let { return it }
         }
         return collect(root) { n ->
             n.isVisibleToUser && n.isEnabled && !n.isEditable &&
-                (SEND_WORDS.contains(n.contentDescription?.toString()?.trim()?.lowercase()) ||
-                    SEND_WORDS.contains(n.text?.toString()?.trim()?.lowercase()))
+                (MessengerProfiles.isSendLabel(n.contentDescription) || MessengerProfiles.isSendLabel(n.text))
         }.firstOrNull()
     }
 
@@ -254,12 +280,6 @@ class AutomationService : AccessibilityService() {
         var instance: AutomationService? = null
             private set
 
-        private val SEND_WORDS = setOf("send", "שלח", "שליחה", "enviar", "envoyer", "senden", "invia", "отправить", "إرسال")
-
-        fun isEnabled(context: Context): Boolean {
-            val flat = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: return false
-            val me = ComponentName(context, AutomationService::class.java)
-            return flat.split(':').any { ComponentName.unflattenFromString(it) == me }
-        }
+        fun isEnabled(context: Context): Boolean = AccessibilityHealth.isEnabledInSettings(context)
     }
 }

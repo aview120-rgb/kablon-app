@@ -26,7 +26,7 @@ class AlarmReceiver : BroadcastReceiver() {
                         .putExtra(AlarmScheduler.EXTRA_ALARM_ID, id)
                         .putExtra(AlarmRingService.EXTRA_LABEL, alarm.label)
                     ContextCompat.startForegroundService(context, svc)
-                    app.log("alarm", "Alarm fired: ${alarm.label}", true)
+                    app.log("alarm", com.autoagent.app.util.L.t("Alarm fired: ${alarm.label}", "השעון המעורר צלצל: ${alarm.label}"), true)
                 }
                 AgentStatus.refresh(context)
             } finally {

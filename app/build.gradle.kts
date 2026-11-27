@@ -16,8 +16,8 @@ android {
         applicationId = "com.autoagent.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.3.0"
     }
 
     // One fixed key for every build (local and CI), so each new APK installs over the previous one
@@ -100,4 +100,7 @@ dependencies {
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
     testImplementation(libs.junit)
+    // Android's org.json is a stub in local unit tests; the real one lets the sync protocol be tested.
+    testImplementation(libs.org.json)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

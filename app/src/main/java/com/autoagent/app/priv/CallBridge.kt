@@ -118,6 +118,15 @@ object CallBridge {
         _state.value = _state.value.copy(connected = false)
     }
 
+    /**
+     * Restarts (or switches on) the accessibility service as the shell user, without root.
+     * null = Shizuku is not connected; "" = done; otherwise the error.
+     */
+    fun restartAccessibility(component: String): String? {
+        val s = service ?: return null
+        return runCatching { s.restartAccessibility(component) }.getOrElse { it.message ?: it.javaClass.simpleName }
+    }
+
     fun installIntent(): Intent =
         Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$SHIZUKU_PACKAGE")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 

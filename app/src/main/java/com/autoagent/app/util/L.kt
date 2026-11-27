@@ -15,7 +15,8 @@ object L {
     const val HE = "he"
     const val EN = "en"
 
-    private val _hebrew = MutableStateFlow(systemIsHebrew())
+    // Hebrew first: the app starts right-to-left even before settings are read.
+    private val _hebrew = MutableStateFlow(true)
     val hebrewFlow: StateFlow<Boolean> = _hebrew.asStateFlow()
     val hebrew: Boolean get() = _hebrew.value
 

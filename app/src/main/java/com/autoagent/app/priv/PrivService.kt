@@ -184,6 +184,21 @@ class PrivService() : IPrivService.Stub() {
         }
     }
 
+    override fun restartAccessibility(component: String?): String {
+        if (component.isNullOrBlank()) return "no component"
+        return try {
+            val current = exec("settings get secure enabled_accessibility_services").trim().takeUnless { it == "null" }.orEmpty()
+            val others = current.split(':').filter { it.isNotBlank() && it != component }
+            exec("settings put secure enabled_accessibility_services " + (others.joinToString(":").ifEmpty { "\"\"" }))
+            Thread.sleep(700)
+            exec("settings put secure enabled_accessibility_services ${(others + component).joinToString(":")}")
+            exec("settings put secure accessibility_enabled 1")
+            ""
+        } catch (e: Exception) {
+            "settings: ${e.message}"
+        }
+    }
+
     private fun exec(cmd: String): String {
         val p = Runtime.getRuntime().exec(arrayOf("sh", "-c", cmd))
         val out = p.inputStream.bufferedReader().readText()

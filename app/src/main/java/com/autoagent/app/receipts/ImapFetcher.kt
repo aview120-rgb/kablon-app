@@ -110,11 +110,11 @@ class ImapWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val app = applicationContext as AutoAgentApp
         return try {
             val out = ImapFetcher.fetch(app)
-            app.log("imap", "E-mail scan: ${out.scanned} receipt-like, ${out.added} new", true)
+            app.log("imap", com.autoagent.app.util.L.t("E-mail scan: ${out.scanned} receipt-like, ${out.added} new", "סריקת מייל: ${out.scanned} דומות לקבלה, ${out.added} חדשות"), true)
             Notifier.event(app, L.t("E-mail receipts", "קבלות מהדואר"), L.t("Found ${out.added} new receipt(s) in ${out.scanned} matching e-mails", "נמצאו ${out.added} קבלות חדשות מתוך ${out.scanned} מיילים מתאימים"), "receipts")
             Result.success()
         } catch (e: Exception) {
-            app.log("imap", "E-mail scan failed: ${e.message}", false)
+            app.log("imap", com.autoagent.app.util.L.t("E-mail scan failed: ${e.message}", "סריקת המייל נכשלה: ${e.message}"), false)
             Notifier.event(app, L.t("E-mail receipts failed", "בדיקת הקבלות בדואר נכשלה"), e.message ?: e.javaClass.simpleName, "receipts")
             Result.failure()
         }

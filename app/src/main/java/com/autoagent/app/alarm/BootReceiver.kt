@@ -40,11 +40,11 @@ class BootReceiver : BroadcastReceiver() {
             for (a in app.db.alarms().enabled()) {
                 if (a.triggerAt < now - 60_000) {
                     app.db.alarms().update(a.copy(enabled = false))
-                    app.log("alarm", "Missed while phone was off: ${a.label}", false)
+                    app.log("alarm", com.autoagent.app.util.L.t("Missed while phone was off: ${a.label}", "פוספס כשהטלפון היה כבוי: ${a.label}"), false)
                 } else if (AlarmScheduler.schedule(context, a)) alarms++
             }
             val sends = SendScheduler.rearmAll(context)
-            app.log("boot", "Re-armed $alarms alarm(s) and $sends scheduled send(s)", true)
+            app.log("boot", com.autoagent.app.util.L.t("Re-armed $alarms alarm(s) and $sends scheduled send(s)", "הופעלו מחדש $alarms שעונים ו-$sends שליחות מתוזמנות"), true)
             AgentStatus.refresh(context)
         }
     }

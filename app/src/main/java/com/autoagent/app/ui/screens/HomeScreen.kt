@@ -95,6 +95,7 @@ fun HomeScreen(vm: HomeViewModel, go: (String) -> Unit) {
                 Tile(L.t("Receipts", "קבלות"), L.t("Share an image or voice note to AutoAgent", "שתף תמונה או הקלטה ל-AutoAgent")) { go("receipts") }
                 Tile(L.t("Voice", "פקודות קוליות"), L.t("Tap the mic and speak a command", "הקש על המיקרופון ותגיד פקודה")) { go("voice") }
                 Tile(L.t("Permissions", "הרשאות"), L.t("Green = ready, red = needs action", "ירוק = מוכן, אדום = צריך טיפול")) { go("permissions") }
+                Tile(L.t("Sync & server", "סנכרון ושרת"), L.t("Task queue that works while the phone is offline", "תור משימות שעובד גם כשהטלפון לא מקוון")) { go("sync") }
             }
         }
         item { Text(" ") }

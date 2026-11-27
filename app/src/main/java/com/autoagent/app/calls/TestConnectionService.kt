@@ -36,7 +36,7 @@ class TestConnectionService : ConnectionService() {
         connectionManagerPhoneAccount: PhoneAccountHandle?,
         request: ConnectionRequest?,
     ) {
-        (applicationContext as AutoAgentApp).log("test-call", "Android rejected the self-managed test call", false)
+        (applicationContext as AutoAgentApp).log("test-call", com.autoagent.app.util.L.t("Android rejected the self-managed test call", "אנדרואיד דחה את שיחת הבדיקה"), false)
     }
 
     private inner class TestConnection : Connection() {

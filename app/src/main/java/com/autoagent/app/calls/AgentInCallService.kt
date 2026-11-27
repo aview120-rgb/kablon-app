@@ -89,14 +89,14 @@ class AgentInCallService : InCallService() {
         if (!s.autoAnswerEnabled) return
         val number = CallManager.numberOf(call)
         when {
-            number.isBlank() -> { app.log("autoanswer", "Hidden number: not auto-answered", false); return }
+            number.isBlank() -> { app.log("autoanswer", L.t("Hidden number: not auto-answered", "מספר חסוי: לא נענה אוטומטית"), false); return }
             !Contacts.hasPermission(app) -> {
-                app.log("autoanswer", "Contacts permission off: cannot verify $number is unknown, not auto-answered", false); return
+                app.log("autoanswer", L.t("Contacts permission off: cannot verify $number is unknown, not auto-answered", "הרשאת אנשי קשר כבויה: אי אפשר לוודא ש-$number לא מוכר, לא נענה"), false); return
             }
             contactName != null -> return
-            CallManager.count() > 1 -> { app.log("autoanswer", "Another call active: $number not auto-answered", false); return }
+            CallManager.count() > 1 -> { app.log("autoanswer", L.t("Another call active: $number not auto-answered", "יש שיחה פעילה אחרת: $number לא נענה"), false); return }
         }
-        app.log("autoanswer", "Unknown caller $number; answering in ${s.autoAnswerDelaySec}s unless you pick up", true)
+        app.log("autoanswer", L.t("Unknown caller $number; answering in ${s.autoAnswerDelaySec}s unless you pick up", "מתקשר לא מוכר $number; עונה בעוד ${s.autoAnswerDelaySec} שניות אם לא תענה"), true)
         handler.postDelayed({
             if (CallManager.stateOf(call) == Call.STATE_RINGING && app.settings.current.autoAnswerEnabled) {
                 pendingAssistant += CallManager.idOf(call)

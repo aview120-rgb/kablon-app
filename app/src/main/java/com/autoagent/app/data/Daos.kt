@@ -52,6 +52,12 @@ interface SendDao {
     @Update
     suspend fun update(send: ScheduledSend)
 
+    @Query("SELECT * FROM scheduled_sends WHERE remoteTaskId = :taskId LIMIT 1")
+    suspend fun byRemoteTask(taskId: String): ScheduledSend?
+
+    @Query("SELECT * FROM scheduled_sends WHERE status IN ('PENDING','RUNNING','WAITING_UNLOCK','WAITING_SERVICE')")
+    fun observeActive(): Flow<List<ScheduledSend>>
+
     @Query("UPDATE scheduled_sends SET status = :status, resultNote = :note WHERE id = :id")
     suspend fun setStatus(id: Long, status: String, note: String)
 
@@ -139,6 +145,72 @@ interface LogDao {
     @Query("SELECT * FROM action_log ORDER BY at DESC LIMIT 200")
     fun observeRecent(): Flow<List<ActionLog>>
 
+    @Query("DELETE FROM action_log WHERE at < :before")
+    suspend fun deleteOlderThan(before: Long)
+
     @Insert
     suspend fun insert(log: ActionLog)
+}
+
+@Dao
+interface RemoteTaskDao {
+    @Query("SELECT * FROM remote_tasks ORDER BY executeAt DESC LIMIT 300")
+    fun observeRecent(): Flow<List<RemoteTask>>
+
+    @Query("SELECT * FROM remote_tasks WHERE id = :id")
+    suspend fun get(id: String): RemoteTask?
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfNew(task: RemoteTask): Long
+
+    @Update
+    suspend fun update(task: RemoteTask)
+
+    @Query("UPDATE remote_tasks SET state = :state, note = :note, updatedAt = :at WHERE id = :id")
+    suspend fun setState(id: String, state: String, note: String, at: Long = System.currentTimeMillis())
+
+    /** Tasks whose storage the server has not confirmed yet. */
+    @Query("SELECT id FROM remote_tasks WHERE ackSent = 0")
+    suspend fun unacked(): List<String>
+
+    @Query("UPDATE remote_tasks SET ackSent = 1 WHERE id IN (:ids)")
+    suspend fun markAcked(ids: List<String>)
+
+    /** Final outcomes not yet accepted by the server. */
+    @Query("SELECT * FROM remote_tasks WHERE reported = 0 AND state IN ('DONE','FAILED','EXPIRED')")
+    suspend fun unreported(): List<RemoteTask>
+
+    @Query("UPDATE remote_tasks SET reported = 1 WHERE id IN (:ids)")
+    suspend fun markReported(ids: List<String>)
+
+    @Query("SELECT * FROM remote_tasks WHERE state IN ('RECEIVED','SCHEDULED')")
+    suspend fun open(): List<RemoteTask>
+
+    @Query("DELETE FROM remote_tasks WHERE reported = 1 AND updatedAt < :before")
+    suspend fun pruneReported(before: Long)
+}
+
+@Dao
+interface OutboxDao {
+    @Query("SELECT * FROM outbox ORDER BY id LIMIT :limit")
+    suspend fun batch(limit: Int): List<OutboxItem>
+
+    @Query("SELECT COUNT(*) FROM outbox")
+    fun observeCount(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM outbox")
+    suspend fun count(): Int
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(item: OutboxItem): Long
+
+    @Query("DELETE FROM outbox WHERE clientId IN (:clientIds)")
+    suspend fun deleteAccepted(clientIds: List<String>)
+
+    @Query("UPDATE outbox SET attempts = attempts + 1 WHERE id IN (:ids)")
+    suspend fun bumpAttempts(ids: List<Long>)
+
+    /** Keeps the outbox bounded if the phone stays offline for a very long time (oldest dropped first). */
+    @Query("DELETE FROM outbox WHERE id NOT IN (SELECT id FROM outbox ORDER BY id DESC LIMIT :keep)")
+    suspend fun trim(keep: Int)
 }

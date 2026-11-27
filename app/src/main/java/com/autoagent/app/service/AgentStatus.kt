@@ -37,7 +37,7 @@ object AgentStatus {
             ContextCompat.startForegroundService(context, intent)
         } catch (e: Exception) {
             // Android blocks foreground-service starts from some background states; it is retried when the app opens.
-            app.log("service", "Could not show the status notification from background: ${e.javaClass.simpleName}", false)
+            app.log("service", L.t("Could not show the status notification from background: ${e.javaClass.simpleName}", "לא ניתן היה להציג את התראת המצב מהרקע: ${e.javaClass.simpleName}"), false)
         }
     }
 

@@ -184,7 +184,7 @@ class AutoAnswerViewModel(application: Application) : AndroidViewModel(applicati
 
     fun setEnabled(on: Boolean) {
         app.settings.setAutoAnswer(on)
-        app.log("autoanswer", "Auto-answer turned ${if (on) "on" else "off"}", true)
+        app.log("autoanswer", L.t("Auto-answer turned ${if (on) "on" else "off"}", "מענה אוטומטי ${if (on) "הופעל" else "כובה"}"), true)
         viewModelScope.launch { AgentStatus.refresh(app) }
         if (on && !PhoneAccounts.isDefaultDialer(app)) message.value = L.t("Auto-answer needs AutoAgent as the default phone app (see Permissions).", "מענה אוטומטי דורש ש-AutoAgent תהיה אפליקציית הטלפון הראשית (במסך ההרשאות).")
     }

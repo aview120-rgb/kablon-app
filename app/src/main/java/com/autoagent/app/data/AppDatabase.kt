@@ -16,8 +16,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         InboxEntry::class,
         Receipt::class,
         ActionLog::class,
+        RemoteTask::class,
+        OutboxItem::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -28,6 +30,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun inbox(): InboxDao
     abstract fun receipts(): ReceiptDao
     abstract fun logs(): LogDao
+    abstract fun remoteTasks(): RemoteTaskDao
+    abstract fun outbox(): OutboxDao
 
     companion object {
         /** v2: Hebrew replies + Hebrew keywords for the built-in call rules. */
@@ -46,6 +50,24 @@ abstract class AppDatabase : RoomDatabase() {
         /** v3: many more Hebrew phrasings and new built-in intents (delivery, appointment, goodbye...). */
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) = upsertDefaults(db)
+        }
+
+        /** v4: server task queue sync (remote tasks + offline outbox) and "prepare only" sends. */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE scheduled_sends ADD COLUMN remoteTaskId TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE scheduled_sends ADD COLUMN autoSend INTEGER NOT NULL DEFAULT 1")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS remote_tasks (id TEXT NOT NULL PRIMARY KEY, type TEXT NOT NULL, title TEXT NOT NULL, " +
+                        "resultJson TEXT NOT NULL, executeAt INTEGER NOT NULL, maxLateMinutes INTEGER NOT NULL, state TEXT NOT NULL, " +
+                        "note TEXT NOT NULL, reported INTEGER NOT NULL, ackSent INTEGER NOT NULL, receivedAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS outbox (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, clientId TEXT NOT NULL, kind TEXT NOT NULL, " +
+                        "dataJson TEXT NOT NULL, at INTEGER NOT NULL, attempts INTEGER NOT NULL)",
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_outbox_clientId ON outbox (clientId)")
+            }
         }
 
         fun upsertDefaults(db: SupportSQLiteDatabase) {
@@ -69,7 +91,7 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "autoagent.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
 
         val DEFAULT_RULES = listOf(
